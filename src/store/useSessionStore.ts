@@ -14,6 +14,7 @@ interface SessionState {
   globalLoopCount: number | "infinite";
   selectedRegionIds: string[];
   playMode: "standard" | "looping";
+  loopGap: number; // in milliseconds
   
   // Actions
   setIsReady: (ready: boolean) => void;
@@ -28,6 +29,7 @@ interface SessionState {
   setGlobalLoopCount: (count: number | "infinite") => void;
   setSelectedRegionIds: (ids: string[]) => void;
   setPlayMode: (mode: "standard" | "looping") => void;
+  setLoopGap: (gap: number) => void;
   
   // Marker/Region actions
   addMarker: (marker: Marker) => void;
@@ -45,10 +47,11 @@ export const useSessionStore = create<SessionState>((set) => ({
   volume: 0.8,
   zoom: 0,
   isReady: false,
-  loopMode: "off",
+  loopMode: "multi",
   globalLoopCount: "infinite",
   selectedRegionIds: [],
   playMode: "looping",
+  loopGap: 0,
 
   setIsReady: (isReady) => set({ isReady }),
   setSession: (session) => set({ currentSession: session, zoom: 0 }),
@@ -61,7 +64,8 @@ export const useSessionStore = create<SessionState>((set) => ({
   setLoopMode: (loopMode) => set({ loopMode }),
   setGlobalLoopCount: (globalLoopCount) => set({ globalLoopCount }),
   setSelectedRegionIds: (selectedRegionIds) => set({ selectedRegionIds }),
-  setPlayMode: (playMode) => set({ playMode }),
+  setPlayMode: (mode) => set({ playMode: mode }),
+  setLoopGap: (gap) => set({ loopGap: gap }),
 
   addMarker: (marker) => set((state) => {
     if (!state.currentSession) return state;
@@ -112,7 +116,7 @@ export const useSessionStore = create<SessionState>((set) => ({
         start,
         end,
         label: existingRegion?.label || `Region ${regions.length + 1}`,
-        repeatCount: existingRegion?.repeatCount || "infinite",
+        repeatCount: existingRegion?.repeatCount || 1,
       });
     }
 
@@ -143,7 +147,7 @@ export const useSessionStore = create<SessionState>((set) => ({
         start,
         end,
         label: existingRegion?.label || `Region ${regions.length + 1}`,
-        repeatCount: existingRegion?.repeatCount || "infinite",
+        repeatCount: existingRegion?.repeatCount || 1,
       });
     }
 

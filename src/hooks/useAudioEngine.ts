@@ -15,17 +15,29 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
   const regionRepeatCounts = useRef<Record<string, number>>({});
   const globalLoopIteration = useRef(0);
   const currentRegionIndex = useRef(0);
+  const isWaiting = useRef(false);
+  const { loopGap } = useSessionStore();
 
   const handleTimeUpdate = useCallback((currentTime: number) => {
     const ws = getWaveSurferInstance();
-    if (!ws || !currentSession) return;
+    if (!ws || !currentSession || isWaiting.current) return;
 
     // STANDARD PLAYBACK MODE
     if (playMode === "standard") {
       if (currentTime >= ws.getDuration() - 0.05) {
         if (loopMode === "infinite") {
-          ws.setTime(0);
-          ws.play();
+          if (loopGap > 0) {
+              isWaiting.current = true;
+              ws.pause();
+              setTimeout(() => {
+                  ws.setTime(0);
+                  ws.play();
+                  isWaiting.current = false;
+              }, loopGap);
+          } else {
+              ws.setTime(0);
+              ws.play();
+          }
         } else {
           ws.pause();
         }
@@ -38,22 +50,35 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
       const regions = currentSession.regions.filter(r => selectedRegionIds.includes(r.id));
       if (regions.length === 0) return;
 
-      // Ensure we are in the correct region range
-      // If we are significantly outside the active region, something is wrong (user clicked elsewhere)
       const active = regions[currentRegionIndex.current];
       if (!active) {
           currentRegionIndex.current = 0;
           return;
       }
 
-      if (currentTime >= active.end) {
+      if (currentTime >= active.end - 0.02) { // Tiny buffer to ensure we catch it
         const repeatsNeeded = active.repeatCount === "infinite" ? Infinity : active.repeatCount;
         const currentRepeats = regionRepeatCounts.current[active.id] || 0;
 
+        const executeSeek = (targetTime: number, isNewLoop: boolean) => {
+            if (loopGap > 0) {
+                isWaiting.current = true;
+                ws.pause();
+                ws.setTime(targetTime); // Move playhead IMMEDIATELY
+                setTimeout(() => {
+                    ws.play();
+                    isWaiting.current = false;
+                }, loopGap);
+            } else {
+                ws.setTime(targetTime);
+                ws.play();
+            }
+        };
+
         if (currentRepeats < repeatsNeeded - 1) {
           // Repeat this region
-          ws.setTime(active.start);
           regionRepeatCounts.current[active.id] = currentRepeats + 1;
+          executeSeek(active.start, false);
         } else {
           // Move to next region
           regionRepeatCounts.current[active.id] = 0;
@@ -61,7 +86,7 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
 
           if (nextIdx < regions.length) {
             currentRegionIndex.current = nextIdx;
-            ws.setTime(regions[nextIdx].start);
+            executeSeek(regions[nextIdx].start, false);
           } else {
             // End of a full global loop
             globalLoopIteration.current += 1;
@@ -69,7 +94,7 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
 
             if (globalLoopIteration.current < globalLimit) {
               currentRegionIndex.current = 0;
-              ws.setTime(regions[0].start);
+              executeSeek(regions[0].start, true);
             } else {
               // Finished all loops
               ws.pause();
@@ -80,7 +105,7 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
         }
       }
     }
-  }, [currentSession, loopMode, globalLoopCount, selectedRegionIds, playMode]);
+  }, [currentSession, loopMode, globalLoopCount, selectedRegionIds, playMode, loopGap]);
 
   useEffect(() => {
     const ws = getWaveSurferInstance();

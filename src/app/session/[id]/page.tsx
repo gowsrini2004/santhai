@@ -7,14 +7,19 @@ import { useSessionStore } from "@/store/useSessionStore";
 import WaveformPlayer from "@/components/waveform/WaveformPlayer";
 import PlaybackBar from "@/components/playback/PlaybackBar";
 import RegionList from "@/components/regions/RegionList";
-import { ChevronLeft, MapPin, Trash2, Clock, Layers, Info, Edit3, Check, Maximize2, Monitor } from "lucide-react";
+import { ChevronLeft, MapPin, Trash2, Clock, Layers, Info, Edit3, Check, Maximize2, Monitor, RefreshCw } from "lucide-react";
 import { formatTime } from "@/lib/timeUtils";
 
 export default function SessionStudio() {
   const { id } = useParams();
   const router = useRouter();
   const { loadSession, saveSession } = useSession();
-  const { currentSession, addMarker, removeMarker, currentTime, isReady, duration, playMode, globalLoopCount } = useSessionStore();
+  const { 
+    currentSession, addMarker, removeMarker, currentTime, 
+    isReady, duration, playMode, globalLoopCount, 
+    selectedRegionIds, loopGap, setLoopGap
+  } = useSessionStore();
+  
   const [isLoaded, setIsLoaded] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
@@ -62,6 +67,33 @@ export default function SessionStudio() {
     }
   };
 
+  const calculateTotalPracticeTime = () => {
+    if (!currentSession || currentSession.regions.length === 0) return 0;
+    const selectedRegions = currentSession.regions.filter(r => selectedRegionIds.includes(r.id));
+    if (selectedRegions.length === 0) return 0;
+
+    const sequenceDuration = selectedRegions.reduce((acc, r) => {
+        const reps = r.repeatCount === "infinite" ? 1 : r.repeatCount;
+        return acc + (r.end - r.start) * reps;
+    }, 0);
+
+    const globalReps = globalLoopCount === "infinite" ? 1 : globalLoopCount;
+    return sequenceDuration * globalReps;
+  };
+
+  useEffect(() => {
+    if (currentSession && isLoaded) {
+      const hasInfinite = currentSession.regions.some(r => r.repeatCount === "infinite");
+      if (hasInfinite) {
+        const updatedRegions = currentSession.regions.map(r => ({
+          ...r,
+          repeatCount: r.repeatCount === "infinite" ? 1 : r.repeatCount
+        }));
+        useSessionStore.getState().setSession({ ...currentSession, regions: updatedRegions });
+      }
+    }
+  }, [currentSession, isLoaded]);
+
   useEffect(() => {
     if (!isLoaded || !currentSession) return;
     setSaveStatus("saving");
@@ -85,6 +117,8 @@ export default function SessionStudio() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } } 
         .animate-spin { animation: spin 0.8s linear infinite; }
+        @keyframes spin-slow { to { transform: rotate(360deg); } }
+        .animate-spin-slow { animation: spin-slow 8s linear infinite; }
         .mobile-view-btn { 
            position: fixed; bottom: 100px; right: 20px; z-index: 100;
            background: #6d28d9; color: white; border: none; border-radius: 50%;
@@ -95,7 +129,6 @@ export default function SessionStudio() {
         @media (min-width: 769px) { .mobile-view-btn { display: none; } }
       `}</style>
 
-      {/* Floating Button for Mobile View */}
       <button className="mobile-view-btn" onClick={toggleMobileView} title="Mobile View">
         <Monitor size={24} />
       </button>
@@ -141,7 +174,6 @@ export default function SessionStudio() {
           </button>
       </header>
 
-      {/* ── Main Layout ── */}
       <div className="responsive-grid" style={{ maxWidth: 1440, margin: "0 auto", padding: "16px 24px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
           <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 16 }}>
@@ -164,6 +196,46 @@ export default function SessionStudio() {
             ))}
           </div>
 
+          {/* Practice Timeline */}
+          {playMode === "looping" && selectedRegionIds.length > 0 && (
+              <div style={{
+                background: "linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%)",
+                borderRadius: 20, padding: "16px 20px", color: "white",
+                boxShadow: "0 8px 20px -5px rgba(109,40,217,0.3)",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <RefreshCw size={16} className="animate-spin-slow" />
+                        <h3 style={{ margin: 0, fontWeight: 800, fontSize: 14 }}>Practice Sequence</h3>
+                    </div>
+                    <span style={{ fontSize: 11, opacity: 0.8, fontWeight: 600 }}>
+                        Total Duration: {formatTime(calculateTotalPracticeTime())}
+                    </span>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }} className="hide-scrollbar">
+                    {currentSession?.regions.filter(r => selectedRegionIds.includes(r.id)).map((r, i) => (
+                        <div key={r.id} style={{
+                            background: "rgba(255,255,255,0.15)", borderRadius: 10, padding: "8px 12px",
+                            minWidth: 100, border: "1px solid rgba(255,255,255,0.2)",
+                        }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, marginBottom: 2 }}>{i+1}</div>
+                            <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.label}</div>
+                            <div style={{ fontSize: 11, fontWeight: 700 }}>{r.repeatCount}×</div>
+                        </div>
+                    ))}
+                    <div style={{ display: "flex", alignItems: "center", padding: "0 4px", fontSize: 16, opacity: 0.5 }}>×</div>
+                    <div style={{
+                        background: "rgba(255,255,255,0.25)", borderRadius: 10, padding: "8px 12px",
+                        minWidth: 80, border: "1.5px solid white",
+                    }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.9, marginBottom: 2 }}>Global</div>
+                        <div style={{ fontWeight: 800, fontSize: 14 }}>{globalLoopCount}×</div>
+                    </div>
+                </div>
+              </div>
+          )}
+
           <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 16 }}>
             <RegionList />
           </div>
@@ -182,6 +254,41 @@ export default function SessionStudio() {
                 <span style={{ fontWeight: 800, color: "#1e1b4b", fontFamily: "monospace" }}>{v}</span>
               </div>
             ))}
+          </div>
+
+          <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, paddingBottom: 8, borderBottom: "1px solid #f3f4f6" }}>
+              <Clock size={15} style={{ color: "#6d28d9" }} />
+              <h3 style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#1e1b4b" }}>Practice Settings</h3>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>Loop Gap</label>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: "#6d28d9" }}>{loopGap === 0 ? "None" : `${loopGap/1000}s`}</span>
+                </div>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {[0, 500, 1000, 2000, 3000, 5000, 10000].map(val => (
+                        <button
+                            key={val}
+                            onClick={() => setLoopGap(val)}
+                            style={{
+                                padding: "4px 8px", borderRadius: 8,
+                                border: "1.5px solid",
+                                borderColor: loopGap === val ? "#6d28d9" : "#e5e7eb",
+                                background: loopGap === val ? "#6d28d9" : "white",
+                                color: loopGap === val ? "white" : "#6b7280",
+                                fontWeight: 700, fontSize: 11, cursor: "pointer",
+                                transition: "all 0.12s",
+                            }}
+                        >
+                            {val === 0 ? "None" : val < 1000 ? "0.5s" : `${val/1000}s`}
+                        </button>
+                    ))}
+                </div>
+                <p style={{ margin: 0, fontSize: 10, color: "#9ca3af" }}>
+                    Pause duration between repeats.
+                </p>
+            </div>
           </div>
 
           <div className="mobile-hide" style={{ background: "#f5f3ff", border: "1.5px solid #c4b5fd", borderRadius: 20, padding: 20 }}>
