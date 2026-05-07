@@ -142,9 +142,14 @@ export default function SessionStudio() {
           <ChevronLeft size={20} />
         </button>
 
-        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 4 }}>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontWeight: 900, fontSize: 13, color: "#6d28d9" }}>SANTHAI</span>
+            <span style={{ fontWeight: 500, fontSize: 10, color: "#6d28d9", opacity: 0.7, letterSpacing: 1 }}>STUDIO</span>
+            <span style={{ width: 1, height: 12, background: "#e5e7eb", margin: "0 4px" }} />
+          </div>
           {isEditingName ? (
-            <input autoFocus value={editedName} onChange={e => setEditedName(e.target.value)} onBlur={handleNameSave} style={{ width: "100%", fontWeight: 800, fontSize: 16, color: "#111827", border: "1.5px solid #6d28d9", borderRadius: 8, padding: "2px 8px", outline: "none" }} />
+            <input autoFocus value={editedName} onChange={e => setEditedName(e.target.value)} onBlur={handleNameSave} style={{ width: "200px", fontWeight: 800, fontSize: 16, color: "#111827", border: "1.5px solid #6d28d9", borderRadius: 8, padding: "2px 8px", outline: "none" }} />
           ) : (
             <>
               <h1 style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentSession?.name || "Untitled"}</h1>

@@ -144,6 +144,7 @@ export default function Home() {
           </div>
           <div>
             <span style={{ fontWeight: 900, fontSize: 20, color: "#1e1b4b" }}>SANTHAI</span>
+            <span style={{ fontWeight: 500, fontSize: 14, color: "#6d28d9", marginLeft: 4, letterSpacing: 1, verticalAlign: "top" }}>STUDIO</span>
           </div>
         </div>
 
