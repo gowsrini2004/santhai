@@ -5,7 +5,7 @@ import { formatTime, formatDuration } from "@/lib/timeUtils";
 import { Check, Repeat, Edit2, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-const REPEAT_OPTIONS: Array<number> = [1, 2, 3, 5, 10];
+const REPEAT_OPTIONS: number[] = [1, 2, 3, 5, 10];
 
 export default function RegionList() {
   const {
@@ -242,7 +242,7 @@ export default function RegionList() {
                           cursor: "pointer",
                         }}
                       >
-                        {opt === "infinite" ? "∞" : `${opt}×`}
+                        {opt}×
                       </button>
                     ))}
                   </div>
