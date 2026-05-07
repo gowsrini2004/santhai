@@ -5,7 +5,7 @@ import { formatTime, formatDuration } from "@/lib/timeUtils";
 import { Check, Repeat, Edit2, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-const REPEAT_OPTIONS: Array<number> = [1, 2, 3, 5];
+const REPEAT_OPTIONS: Array<number | "infinite"> = [1, 2, 3, 5, "infinite"];
 
 export default function RegionList() {
   const {
