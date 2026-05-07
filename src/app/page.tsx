@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/hooks/useSession";
 import { motion, AnimatePresence } from "framer-motion";
-import { Music2, Play, Trash2, Search, Clock, Headphones, Scissors, Plus, Upload, Monitor } from "lucide-react";
+import { Music2, Play, Trash2, Search, Clock, Headphones, Scissors, Plus, Upload, Maximize2 } from "lucide-react";
 import AudioCutterModal from "@/components/upload/AudioCutterModal";
 
 export default function Home() {
@@ -121,9 +121,9 @@ export default function Home() {
         @media (min-width: 769px) { .mobile-view-btn { display: none; } }
       `}</style>
 
-      {/* Floating Button for Mobile View */}
-      <button className="mobile-view-btn" onClick={toggleMobileView} title="Mobile View">
-        <Monitor size={24} />
+      {/* Floating Button for Full Screen */}
+      <button className="mobile-view-btn" onClick={toggleMobileView} title="Full Screen">
+        <Maximize2 size={24} />
       </button>
 
       {/* ── Header ── */}
@@ -160,6 +160,17 @@ export default function Home() {
             <Plus size={16} /> New Session
           </button>
           <button
+            onClick={handleCutterClick}
+            style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 16px", borderRadius: 10,
+              background: "#ede9fe", color: "#6d28d9",
+              border: "1.5px solid #c4b5fd", fontWeight: 700, fontSize: 13, cursor: "pointer"
+            }}
+          >
+            <Scissors size={16} /> Audio Cutter
+          </button>
+          <button
             onClick={toggleMobileView}
             className="mobile-hide"
             style={{
@@ -169,7 +180,7 @@ export default function Home() {
               border: "1.5px solid #c4b5fd", fontWeight: 700, fontSize: 13, cursor: "pointer"
             }}
           >
-            <Monitor size={16} /> Mobile View
+            <Maximize2 size={16} /> Full Screen
           </button>
         </div>
       </header>

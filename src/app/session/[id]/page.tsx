@@ -17,7 +17,7 @@ export default function SessionStudio() {
   const { 
     currentSession, addMarker, removeMarker, currentTime, 
     isReady, duration, playMode, globalLoopCount, 
-    selectedRegionIds, loopGap, setLoopGap
+    selectedRegionIds, loopGap, setLoopGap, waitingTimeRemaining
   } = useSessionStore();
   
   const [isLoaded, setIsLoaded] = useState(false);
@@ -108,7 +108,7 @@ export default function SessionStudio() {
   if (!isLoaded) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, background: "white" }}>
       <div className="animate-spin" style={{ width: 40, height: 40, border: "3px solid #c4b5fd", borderTop: "3px solid #6d28d9", borderRadius: "50%" }} />
-      <p style={{ color: "#6b7280", fontWeight: 600, margin: 0 }}>Loading session…</p>
+      <p style={{ color: "#6b7280", fontWeight: 600, margin: 0 }}>Loading session</p>
     </div>
   );
 
@@ -127,10 +127,8 @@ export default function SessionStudio() {
         }
         .mobile-view-btn:active { transform: scale(0.9); }
         @media (min-width: 769px) { .mobile-view-btn { display: none; } }
-      `}</style>
-
-      <button className="mobile-view-btn" onClick={toggleMobileView} title="Mobile View">
-        <Monitor size={24} />
+      `}</style>      <button className="mobile-view-btn" onClick={toggleMobileView} title="Full Screen">
+        <Maximize2 size={24} />
       </button>
 
       {/* ── Top nav ── */}
@@ -170,7 +168,7 @@ export default function SessionStudio() {
               border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer"
             }}
           >
-            <Maximize2 size={14} /> Mobile View
+            <Maximize2 size={14} /> Full Screen
           </button>
       </header>
 
@@ -190,7 +188,7 @@ export default function SessionStudio() {
             </button>
             {(currentSession?.markers ?? []).map(m => (
               <span key={m.id} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#ede9fe", color: "#5b21b6", border: "1px solid #c4b5fd", borderRadius: 8, padding: "3px 8px", fontSize: 11, fontWeight: 700 }}>
-                {m.label} · {formatTime(m.time)}
+                {m.label}  {formatTime(m.time)}
                 <button onClick={() => removeMarker(m.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#a78bfa", display: "flex" }}><Trash2 size={11} /></button>
               </span>
             ))}
@@ -221,16 +219,16 @@ export default function SessionStudio() {
                         }}>
                             <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, marginBottom: 2 }}>{i+1}</div>
                             <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.label}</div>
-                            <div style={{ fontSize: 11, fontWeight: 700 }}>{r.repeatCount}×</div>
+                            <div style={{ fontSize: 11, fontWeight: 700 }}>{r.repeatCount}</div>
                         </div>
                     ))}
-                    <div style={{ display: "flex", alignItems: "center", padding: "0 4px", fontSize: 16, opacity: 0.5 }}>×</div>
+                    <div style={{ display: "flex", alignItems: "center", padding: "0 4px", fontSize: 16, opacity: 0.5 }}></div>
                     <div style={{
                         background: "rgba(255,255,255,0.25)", borderRadius: 10, padding: "8px 12px",
                         minWidth: 80, border: "1.5px solid white",
                     }}>
                         <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.9, marginBottom: 2 }}>Global</div>
-                        <div style={{ fontWeight: 800, fontSize: 14 }}>{globalLoopCount}×</div>
+                        <div style={{ fontWeight: 800, fontSize: 14 }}>{globalLoopCount}</div>
                     </div>
                 </div>
               </div>
@@ -264,7 +262,20 @@ export default function SessionStudio() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                     <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>Loop Gap</label>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: "#6d28d9" }}>{loopGap === 0 ? "None" : `${loopGap/1000}s`}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {waitingTimeRemaining > 0 && (
+                            <span style={{ 
+                                background: "#ede9fe", color: "#6d28d9", padding: "2px 8px", 
+                                borderRadius: 6, fontSize: 10, fontWeight: 900, 
+                                display: "flex", alignItems: "center", gap: 4,
+                                border: "1px solid #c4b5fd",
+                            }}>
+                                <div className="animate-spin" style={{ width: 8, height: 8, border: "1.5px solid #c4b5fd", borderTopColor: "#6d28d9", borderRadius: "50%" }} />
+                                WAITING: {(waitingTimeRemaining/1000).toFixed(1)}s
+                            </span>
+                        )}
+                        <span style={{ fontSize: 12, fontWeight: 800, color: "#6d28d9" }}>{loopGap === 0 ? "None" : `${loopGap/1000}s`}</span>
+                    </div>
                 </div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {[0, 500, 1000, 2000, 3000, 5000, 10000].map(val => (
@@ -296,7 +307,7 @@ export default function SessionStudio() {
               <Info size={15} style={{ color: "#6d28d9" }} />
               <h3 style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#5b21b6" }}>Shortcuts</h3>
             </div>
-            {[["Space", "Play/Pause"], ["M", "Marker"], ["L", "Loop"], ["← →", "Seek"], ["+ −", "Speed"]].map(([k, a]) => (
+            {[["Space", "Play/Pause"], ["M", "Marker"], ["L", "Loop"], ["← →", "Seek"], ["+ -", "Speed"]].map(([k, a]) => (
               <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                 <span style={{ fontSize: 12, color: "#6b7280" }}>{a}</span>
                 <kbd style={{ background: "white", border: "1.5px solid #c4b5fd", borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 700, color: "#6d28d9" }}>{k}</kbd>

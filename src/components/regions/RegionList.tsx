@@ -2,8 +2,9 @@
 
 import { useSessionStore } from "@/store/useSessionStore";
 import { formatTime, formatDuration } from "@/lib/timeUtils";
-import { Check, Repeat, Edit2, Trash2 } from "lucide-react";
+import { Check, Repeat, Edit2, Trash2, Play } from "lucide-react";
 import { useState } from "react";
+import { getWaveSurferInstance } from "@/lib/wavesurferInstance";
 
 const REPEAT_OPTIONS: number[] = [1, 2, 3, 5];
 
@@ -135,16 +136,21 @@ export default function RegionList() {
 
               {/* Region number badge + name */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <span style={{
-                  background: selected ? "#6d28d9" : "#f3f4f6",
-                  color: selected ? "white" : "#6b7280",
-                  width: 28, height: 28, borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, fontWeight: 800, flexShrink: 0,
-                  transition: "all 0.15s",
-                }}>
-                  {index + 1}
-                </span>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); getWaveSurferInstance()?.setTime(region.start); getWaveSurferInstance()?.play(); }}
+                  style={{
+                    background: selected ? "#6d28d9" : "#f3f4f6",
+                    color: selected ? "white" : "#6b7280",
+                    width: 28, height: 28, borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    border: "none", cursor: "pointer",
+                    fontSize: 12, fontWeight: 800, flexShrink: 0,
+                    transition: "all 0.15s",
+                  }}
+                  title="Play this region"
+                >
+                  <Play size={12} fill="currentColor" />
+                </button>
 
                 {editingRegionId === region.id ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1 }} onClick={e => e.stopPropagation()}>

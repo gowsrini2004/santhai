@@ -16,11 +16,13 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
   const globalLoopIteration = useRef(0);
   const currentRegionIndex = useRef(0);
   const isWaiting = useRef(false);
-  const { loopGap } = useSessionStore();
+  const { loopGap, setWaiting } = useSessionStore();
 
   const handleTimeUpdate = useCallback((currentTime: number) => {
     const ws = getWaveSurferInstance();
     if (!ws || !currentSession || isWaiting.current) return;
+
+    // ... (rest of the logic remains similar but uses setWaiting)
 
     // STANDARD PLAYBACK MODE
     if (playMode === "standard") {
@@ -60,12 +62,22 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
         const repeatsNeeded = active.repeatCount === "infinite" ? Infinity : active.repeatCount;
         const currentRepeats = regionRepeatCounts.current[active.id] || 0;
 
-        const executeSeek = (targetTime: number, isNewLoop: boolean) => {
+        const executeSeek = (targetTime: number) => {
             if (loopGap > 0) {
                 isWaiting.current = true;
                 ws.pause();
-                ws.setTime(targetTime); // Move playhead IMMEDIATELY
+                ws.setTime(targetTime);
+
+                let remaining = loopGap;
+                setWaiting(remaining);
+                const interval = setInterval(() => {
+                    remaining -= 100;
+                    setWaiting(Math.max(0, remaining));
+                }, 100);
+
                 setTimeout(() => {
+                    clearInterval(interval);
+                    setWaiting(0);
                     ws.play();
                     isWaiting.current = false;
                 }, loopGap);
@@ -76,25 +88,22 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
         };
 
         if (currentRepeats < repeatsNeeded - 1) {
-          // Repeat this region
           regionRepeatCounts.current[active.id] = currentRepeats + 1;
-          executeSeek(active.start, false);
+          executeSeek(active.start);
         } else {
-          // Move to next region
           regionRepeatCounts.current[active.id] = 0;
           const nextIdx = currentRegionIndex.current + 1;
 
           if (nextIdx < regions.length) {
             currentRegionIndex.current = nextIdx;
-            executeSeek(regions[nextIdx].start, false);
+            executeSeek(regions[nextIdx].start);
           } else {
-            // End of a full global loop
             globalLoopIteration.current += 1;
             const globalLimit = globalLoopCount === "infinite" ? Infinity : globalLoopCount;
 
             if (globalLoopIteration.current < globalLimit) {
               currentRegionIndex.current = 0;
-              executeSeek(regions[0].start, true);
+              executeSeek(regions[0].start);
             } else {
               // Finished all loops
               ws.pause();

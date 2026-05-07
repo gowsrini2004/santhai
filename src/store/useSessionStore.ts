@@ -15,6 +15,7 @@ interface SessionState {
   selectedRegionIds: string[];
   playMode: "standard" | "looping";
   loopGap: number; // in milliseconds
+  waitingTimeRemaining: number; // in milliseconds
   
   // Actions
   setIsReady: (ready: boolean) => void;
@@ -30,6 +31,7 @@ interface SessionState {
   setSelectedRegionIds: (ids: string[]) => void;
   setPlayMode: (mode: "standard" | "looping") => void;
   setLoopGap: (gap: number) => void;
+  setWaiting: (ms: number) => void;
   
   // Marker/Region actions
   addMarker: (marker: Marker) => void;
@@ -52,6 +54,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   selectedRegionIds: [],
   playMode: "looping",
   loopGap: 0,
+  waitingTimeRemaining: 0,
 
   setIsReady: (isReady) => set({ isReady }),
   setSession: (session) => set({ currentSession: session, zoom: 0 }),
@@ -66,6 +69,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   setSelectedRegionIds: (selectedRegionIds) => set({ selectedRegionIds }),
   setPlayMode: (mode) => set({ playMode: mode }),
   setLoopGap: (gap) => set({ loopGap: gap }),
+  setWaiting: (ms) => set({ waitingTimeRemaining: ms }),
 
   addMarker: (marker) => set((state) => {
     if (!state.currentSession) return state;
