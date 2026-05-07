@@ -21,7 +21,7 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
   const [markers, setMarkers] = useState<{ id: string; time: number }[]>([]);
   const [partNames, setPartNames] = useState<string[]>(["Part 1"]);
   const [isExporting, setIsExporting] = useState(false);
-  const [zoom, setZoom] = useState(0); // 0 = fit
+  const [zoom, setZoom] = useState(0); 
   const { createSession } = useSession();
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
       barGap: 3,
       height: 100,
       url: URL.createObjectURL(file),
-      minPxPerSec: zoom > 0 ? zoom : undefined,
+      minPxPerSec: zoom > 0 ? zoom : 0,
     });
 
     ws.on("ready", () => {
@@ -50,10 +50,10 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
     return () => ws.destroy();
   }, [isOpen, file]);
 
-  // Handle zoom changes
+  // Sync zoom changes to WaveSurfer
   useEffect(() => {
     if (wavesurfer.current) {
-        wavesurfer.current.setOptions({ minPxPerSec: zoom > 0 ? zoom : 0 });
+        wavesurfer.current.setOptions({ minPxPerSec: zoom });
     }
   }, [zoom]);
 
@@ -93,7 +93,6 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
     wavesurfer.current.setTime(start);
     wavesurfer.current.play();
     
-    // Stop at end
     const checkEnd = (time: number) => {
         if (time >= end) {
             wavesurfer.current?.pause();
@@ -139,8 +138,7 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
 
       onClose();
     } catch (e) {
-      console.error("Export failed:", e);
-      alert("Export failed.");
+      console.error("Export failed", e);
     } finally {
       setIsExporting(false);
     }
@@ -160,6 +158,7 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
   }
 
   const isFit = zoom === 0;
+  // Calculate width precisely to enable standard browser horizontal scrolling
   const totalWidth = isFit ? "100%" : `${duration * zoom}px`;
 
   return (
@@ -181,7 +180,7 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#1e1b4b" }}>Audio Cutter</h2>
-              <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>Preview and split sessions</p>
+              <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>Split & Export Sessions</p>
             </div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af" }}>
@@ -192,16 +191,32 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
         {/* Content */}
         <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, minHeight: 0 }}>
           
-          {/* Waveform Viewport */}
+          {/* Waveform Viewport (The Porthole) */}
           <div style={{ 
             background: "#f9fafb", border: "1.5px solid #e5e7eb", borderRadius: 20, 
-            overflow: "hidden", position: "relative", height: 140, marginBottom: 12
+            overflow: "hidden", position: "relative", height: 140, marginBottom: 12,
+            width: "100%", minWidth: 0
           }}>
-             <div style={{ overflowX: "auto", height: "100%", width: "100%", position: "relative" }}>
-                <div style={{ width: totalWidth, minWidth: "100%", height: "100%", position: "relative", display: "flex", alignItems: "center" }}>
-                    <div ref={containerRef} style={{ width: "100%" }} />
+             {/* The Scrollable Element */}
+             <div style={{ 
+                overflowX: "auto", 
+                height: "100%", 
+                width: "100%", 
+                position: "relative"
+             }}>
+                {/* The Content (Scaled Width) */}
+                <div style={{ 
+                    width: totalWidth, 
+                    minWidth: "100%", 
+                    height: "100%", 
+                    position: "relative", 
+                    display: "flex", 
+                    alignItems: "center" 
+                }}>
+                    {/* WaveSurfer Target - Must span full parent width */}
+                    <div ref={containerRef} style={{ width: "100%", minWidth: "100%" }} />
                     
-                    {/* Split Pins */}
+                    {/* Split Markers */}
                     {duration > 0 && markers.map(m => {
                       const leftPos = isFit ? `${(m.time / duration) * 100}%` : `${m.time * zoom}px`;
                       return (
@@ -211,7 +226,8 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
                         }}>
                           <div style={{
                             position: "absolute", top: 4, left: "50%", transform: "translateX(-50%)",
-                            width: 8, height: 8, borderRadius: "50%", background: "#ef4444"
+                            width: 8, height: 8, borderRadius: "50%", background: "#ef4444",
+                            border: "2px solid white", boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
                           }} />
                         </div>
                       );
@@ -220,7 +236,6 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
              </div>
           </div>
 
-          {/* Tools bar */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
              <button
               onClick={() => wavesurfer.current?.playPause()}
@@ -236,32 +251,32 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
             </div>
 
             {/* Zoom Controls */}
-            <div style={{ display: "flex", alignItems: "center", gap: 2, background: "#f3f4f6", padding: 3, borderRadius: 10 }}>
-                <button onClick={() => setZoom(Math.max(0, zoom - 20))} style={{ padding: 6, border: "none", background: "none", cursor: "pointer", color: "#6d28d9" }}><ZoomOut size={16}/></button>
-                <button onClick={() => setZoom(0)} style={{ padding: "4px 8px", border: "none", background: isFit ? "white" : "none", borderRadius: 6, fontSize: 11, fontWeight: 800, color: "#6d28d9", cursor: "pointer", boxShadow: isFit ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}><RotateCcw size={12}/> Fit</button>
-                <button onClick={() => setZoom(zoom === 0 ? 20 : Math.min(400, zoom + 20))} style={{ padding: 6, border: "none", background: "none", cursor: "pointer", color: "#6d28d9" }}><ZoomIn size={16}/></button>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#f3f4f6", padding: 4, borderRadius: 12 }}>
+                <button onClick={() => setZoom(Math.max(0, zoom - 50))} style={{ padding: 6, border: "none", background: "none", cursor: "pointer", color: "#6d28d9" }}><ZoomOut size={16}/></button>
+                <button onClick={() => setZoom(0)} style={{ padding: "4px 10px", border: "none", background: isFit ? "white" : "none", borderRadius: 8, fontSize: 11, fontWeight: 800, color: "#6d28d9", cursor: "pointer", boxShadow: isFit ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}><RotateCcw size={14}/> Fit</button>
+                <button onClick={() => setZoom(zoom === 0 ? 50 : Math.min(600, zoom + 100))} style={{ padding: 6, border: "none", background: "none", cursor: "pointer", color: "#6d28d9" }}><ZoomIn size={16}/></button>
             </div>
 
             <button
               onClick={addMarker}
               style={{
-                marginLeft: "auto", padding: "8px 16px", borderRadius: 10, background: "#6d28d9",
-                color: "white", fontWeight: 800, fontSize: 13,
-                border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                marginLeft: "auto", padding: "10px 20px", borderRadius: 12, background: "#6d28d9",
+                color: "white", fontWeight: 800, fontSize: 14,
+                border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+                boxShadow: "0 4px 12px rgba(109,40,217,0.2)"
               }}
             >
-              <MapPin size={16} /> Split Here
+              <MapPin size={18} /> Split Here
             </button>
           </div>
 
-          {/* Parts List */}
           <div style={{ background: "#f9fafb", borderRadius: 20, padding: 4, border: "1.5px solid #e5e7eb" }}>
                <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 4px" }}>
                  <thead>
                    <tr>
                      <th style={{ padding: "8px 16px", fontSize: 10, color: "#9ca3af", textAlign: "left", textTransform: "uppercase" }}>Name</th>
                      <th style={{ padding: "8px 16px", fontSize: 10, color: "#9ca3af", textAlign: "left", textTransform: "uppercase" }}>Interval</th>
-                     <th style={{ padding: "8px 16px", fontSize: 10, color: "#9ca3af", textAlign: "right" }}>Actions</th>
+                     <th style={{ padding: "8px 16px", fontSize: 10, color: "#9ca3af", textAlign: "right" }}>Preview</th>
                    </tr>
                  </thead>
                  <tbody>
@@ -274,13 +289,13 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
                             onChange={e => updatePartName(idx, e.target.value)}
                             style={{ 
                               border: "none", background: "#f3f4f6", borderRadius: 8,
-                              padding: "6px 12px", fontWeight: 800, fontSize: 13, color: "#1e1b4b", 
+                              padding: "8px 12px", fontWeight: 800, fontSize: 14, color: "#1e1b4b", 
                               outline: "none", width: "100%"
                             }}
                           />
                         </td>
                         <td style={{ padding: "8px 16px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#6d28d9" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "monospace", fontSize: 13, fontWeight: 700, color: "#6d28d9" }}>
                             {formatTime(p.start)} → {formatTime(p.end)}
                           </div>
                         </td>
@@ -288,20 +303,19 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
                              <button 
                               onClick={() => playPart(p.start, p.end)}
-                              title="Play this part only"
                               style={{ 
                                 background: "#ede9fe", color: "#6d28d9", border: "none", 
-                                borderRadius: 8, padding: "6px 10px", fontSize: 11, fontWeight: 800, cursor: "pointer"
+                                borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 800, cursor: "pointer"
                               }}
                             >
-                              Play Part
+                              Play
                             </button>
                             {p.markerId && (
                                 <button 
                                 onClick={() => removeMarker(p.markerId!)} 
                                 style={{ background: "none", border: "none", cursor: "pointer", color: "#fca5a5", padding: 4 }}
                                 >
-                                <Trash2 size={16} />
+                                <Trash2 size={18} />
                                 </button>
                             )}
                           </div>
@@ -313,9 +327,8 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
           </div>
         </div>
 
-        {/* Footer */}
         <div style={{ padding: "16px 24px", background: "#f9fafb", borderTop: "1.5px solid #f3f4f6", display: "flex", justifyContent: "flex-end", gap: 12 }}>
-          <button onClick={onClose} style={{ padding: "10px 20px", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "white", fontWeight: 700, cursor: "pointer", color: "#6b7280" }}>
+          <button onClick={onClose} style={{ padding: "10px 24px", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "white", fontWeight: 700, cursor: "pointer", color: "#6b7280" }}>
             Cancel
           </button>
           <button
@@ -344,8 +357,7 @@ function bufferToWav(abuffer: AudioBuffer) {
       buffer = new ArrayBuffer(length),
       view = new DataView(buffer),
       channels = [], i, sample,
-      offset = 0,
-      pos = 0;
+      offset = 0, pos = 0;
 
   function setUint16(data: any) { view.setUint16(pos, data, true); pos += 2; }
   function setUint32(data: any) { view.setUint32(pos, data, true); pos += 4; }
@@ -357,7 +369,6 @@ function bufferToWav(abuffer: AudioBuffer) {
   setUint32(0x61746164); setUint32(length - pos - 4);
 
   for(i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
-
   while(pos < length) {
     for(i = 0; i < numOfChan; i++) {
       sample = Math.max(-1, Math.min(1, channels[i][offset]));

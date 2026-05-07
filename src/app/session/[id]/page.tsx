@@ -7,7 +7,7 @@ import { useSessionStore } from "@/store/useSessionStore";
 import WaveformPlayer from "@/components/waveform/WaveformPlayer";
 import PlaybackBar from "@/components/playback/PlaybackBar";
 import RegionList from "@/components/regions/RegionList";
-import { ChevronLeft, MapPin, Trash2, Clock, Layers, Info, Edit3, Check, RefreshCw } from "lucide-react";
+import { ChevronLeft, MapPin, Trash2, Clock, Layers, Info, Edit3, Check, RefreshCw, Save } from "lucide-react";
 import { formatTime } from "@/lib/timeUtils";
 
 export default function SessionStudio() {
@@ -18,6 +18,7 @@ export default function SessionStudio() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   useEffect(() => {
     if (id) loadSession(id as string).then(() => setIsLoaded(true));
@@ -50,9 +51,18 @@ export default function SessionStudio() {
     return sequenceDuration * globalReps;
   };
 
+  // Auto-save logic with visual feedback
   useEffect(() => {
     if (!isLoaded || !currentSession) return;
-    const t = setTimeout(() => saveSession(currentSession), 1200);
+    
+    setSaveStatus("saving");
+    const t = setTimeout(async () => {
+        await saveSession(currentSession);
+        setSaveStatus("saved");
+        // Back to idle after a few seconds
+        setTimeout(() => setSaveStatus("idle"), 2000);
+    }, 1000);
+
     return () => clearTimeout(t);
   }, [currentSession, isLoaded, saveSession]);
 
@@ -61,19 +71,18 @@ export default function SessionStudio() {
       minHeight: "100vh", display: "flex", alignItems: "center",
       justifyContent: "center", flexDirection: "column", gap: 16, background: "white",
     }}>
-      <div style={{
+      <div className="animate-spin" style={{
         width: 40, height: 40, border: "3px solid #c4b5fd",
         borderTop: "3px solid #6d28d9", borderRadius: "50%",
-        animation: "spin 0.8s linear infinite",
       }} />
       <p style={{ color: "#6b7280", fontWeight: 600, margin: 0 }}>Loading session…</p>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } .animate-spin { animation: spin 0.8s linear infinite; }`}</style>
     </div>
   );
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", paddingBottom: 88 }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } .animate-spin { animation: spin 0.8s linear infinite; }`}</style>
 
       {/* ── Top nav ── */}
       <header style={{
@@ -89,8 +98,6 @@ export default function SessionStudio() {
             borderRadius: 10, padding: "7px 10px", cursor: "pointer",
             color: "#374151", display: "flex", alignItems: "center",
           }}
-          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "#f3f4f6")}
-          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "none")}
         >
           <ChevronLeft size={20} />
         </button>
@@ -132,6 +139,32 @@ export default function SessionStudio() {
           )}
         </div>
 
+        {/* Save Status Indicator */}
+        <div style={{ 
+            display: "flex", alignItems: "center", gap: 6, 
+            fontSize: 12, fontWeight: 700, color: saveStatus === "saving" ? "#6d28d9" : "#10b981",
+            transition: "all 0.3s opacity",
+            opacity: saveStatus === "idle" ? 0.5 : 1,
+            marginRight: 10
+        }}>
+           {saveStatus === "saving" ? (
+               <>
+                 <div className="animate-spin" style={{ width: 12, height: 12, border: "2px solid #ddd6fe", borderTopColor: "#6d28d9", borderRadius: "50%" }} />
+                 Saving...
+               </>
+           ) : saveStatus === "saved" ? (
+               <>
+                 <Check size={14} />
+                 Saved
+               </>
+           ) : (
+               <>
+                 <Save size={14} style={{ opacity: 0.5 }} />
+                 Ready
+               </>
+           )}
+        </div>
+
         {/* Status pill */}
         <div style={{
           display: "flex", alignItems: "center", gap: 6,
@@ -154,7 +187,7 @@ export default function SessionStudio() {
         maxWidth: 1440, margin: "0 auto", padding: 24,
         display: "grid", gridTemplateColumns: "1fr 360px", gap: 20,
       }}>
-        {/* ── Left: Waveform + Actions + Regions ── */}
+        {/* ── Left Column ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
 
           {/* Waveform card */}
@@ -200,25 +233,18 @@ export default function SessionStudio() {
                 border: "none", fontWeight: 700, fontSize: 14,
                 cursor: isReady ? "pointer" : "not-allowed",
                 display: "flex", alignItems: "center", gap: 8,
-                transition: "background 0.12s", flexShrink: 0,
               }}
-              onMouseEnter={e => isReady && ((e.currentTarget as HTMLElement).style.background = "#5b21b6")}
-              onMouseLeave={e => isReady && ((e.currentTarget as HTMLElement).style.background = "#6d28d9")}
             >
               <MapPin size={15} />
               Add Marker
-              <kbd style={{
-                background: "rgba(255,255,255,0.2)", borderRadius: 5,
-                padding: "1px 6px", fontSize: 11,
-              }}>M</kbd>
+              <kbd style={{ background: "rgba(255,255,255,0.2)", borderRadius: 5, padding: "1px 6px", fontSize: 11 }}>M</kbd>
             </button>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: 12, flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: 12 }}>
               <Clock size={13} />
               <span style={{ fontFamily: "monospace", fontWeight: 700 }}>{formatTime(currentTime)}</span>
             </div>
 
-            {/* Marker chips */}
             {(currentSession?.markers ?? []).map(m => (
               <span key={m.id} style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
@@ -230,12 +256,7 @@ export default function SessionStudio() {
                 {m.label} · {formatTime(m.time)}
                 <button
                   onClick={() => removeMarker(m.id)}
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    color: "#a78bfa", padding: 0, marginLeft: 2,
-                    display: "flex", alignItems: "center",
-                  }}
-                  title="Delete marker"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#a78bfa", padding: 0, marginLeft: 2, display: "flex", alignItems: "center" }}
                 >
                   <Trash2 size={11} />
                 </button>
@@ -243,7 +264,7 @@ export default function SessionStudio() {
             ))}
           </div>
 
-          {/* Practice Timeline / Loop Status */}
+          {/* Practice Timeline */}
           {playMode === "looping" && useSessionStore.getState().selectedRegionIds.length > 0 && (
               <div style={{
                 background: "linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%)",
@@ -292,10 +313,8 @@ export default function SessionStudio() {
           </div>
         </div>
 
-        {/* ── Right: Info panel ── */}
+        {/* ── Right Column ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* Session stats */}
           <div style={{
             background: "white", border: "1.5px solid #e5e7eb",
             borderRadius: 20, padding: 20,
@@ -320,9 +339,6 @@ export default function SessionStudio() {
             ))}
           </div>
 
-
-
-          {/* Keyboard shortcuts */}
           <div style={{
             background: "#f5f3ff", border: "1.5px solid #c4b5fd",
             borderRadius: 20, padding: 20,

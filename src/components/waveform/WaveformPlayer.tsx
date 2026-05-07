@@ -65,9 +65,7 @@ export default function WaveformPlayer() {
                 height: "100%",
                 overflowX: "auto", 
                 overflowY: "hidden",
-                position: "relative",
-                scrollbarWidth: "thin",
-                scrollbarColor: "#c4b5fd transparent",
+                position: "relative"
             }}
         >
             {/* 
