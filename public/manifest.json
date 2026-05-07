@@ -1,11 +1,12 @@
 {
   "name": "SANTHAI",
   "short_name": "SANTHAI",
-  "description": "Spiritual Audio Practice & Looping Studio",
+  "description": "Professional Audio Loop Practice & Looping Studio",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1A1410",
-  "theme_color": "#C8952A",
+  "orientation": "landscape",
+  "background_color": "#f9fafb",
+  "theme_color": "#6d28d9",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

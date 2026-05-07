@@ -19,10 +19,17 @@ export default function SessionStudio() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (id) loadSession(id as string).then(() => setIsLoaded(true));
   }, [id, loadSession]);
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
 
   useEffect(() => {
     if (currentSession && !isEditingName) {
@@ -37,40 +44,22 @@ export default function SessionStudio() {
     setIsEditingName(false);
   };
 
-  const toggleFullscreenAndLandscape = async () => {
+  const toggleMobileView = async () => {
     try {
       if (!document.fullscreenElement) {
-        // Trigger Fullscreen
         await document.documentElement.requestFullscreen();
-        // Request Landscape Orientation
-        if (window.screen.orientation && (window.screen.orientation as any).lock) {
-          await (window.screen.orientation as any).lock("landscape").catch(() => {
-             console.warn("Orientation lock not supported or allowed.");
-          });
+        if (screen.orientation && (screen.orientation as any).lock) {
+            await (screen.orientation as any).lock("landscape").catch(() => {});
         }
       } else {
         await document.exitFullscreen();
-        if (window.screen.orientation && (window.screen.orientation as any).unlock) {
-            window.screen.orientation.unlock();
+        if (screen.orientation && (screen.orientation as any).unlock) {
+            (screen.orientation as any).unlock();
         }
       }
     } catch (e) {
-      console.error("Fullscreen/Orientation error:", e);
+      console.error("Mobile view error", e);
     }
-  };
-
-  const calculateTotalPracticeTime = () => {
-    if (!currentSession || currentSession.regions.length === 0) return 0;
-    const selectedRegions = currentSession.regions.filter(r => useSessionStore.getState().selectedRegionIds.includes(r.id));
-    if (selectedRegions.length === 0) return 0;
-
-    const sequenceDuration = selectedRegions.reduce((acc, r) => {
-        const reps = r.repeatCount === "infinite" ? 1 : r.repeatCount;
-        return acc + (r.end - r.start) * reps;
-    }, 0);
-
-    const globalReps = globalLoopCount === "infinite" ? 1 : globalLoopCount;
-    return sequenceDuration * globalReps;
   };
 
   useEffect(() => {
@@ -88,104 +77,114 @@ export default function SessionStudio() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, background: "white" }}>
       <div className="animate-spin" style={{ width: 40, height: 40, border: "3px solid #c4b5fd", borderTop: "3px solid #6d28d9", borderRadius: "50%" }} />
       <p style={{ color: "#6b7280", fontWeight: 600, margin: 0 }}>Loading session…</p>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } .animate-spin { animation: spin 0.8s linear infinite; }`}</style>
     </div>
   );
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", paddingBottom: 88 }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } .animate-spin { animation: spin 0.8s linear infinite; }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } } 
+        .animate-spin { animation: spin 0.8s linear infinite; }
+        .mobile-view-btn { 
+           position: fixed; bottom: 100px; right: 20px; z-index: 100;
+           background: #6d28d9; color: white; border: none; border-radius: 50%;
+           width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;
+           box-shadow: 0 8px 20px rgba(109,40,217,0.4); cursor: pointer; transition: all 0.2s;
+        }
+        .mobile-view-btn:active { transform: scale(0.9); }
+        @media (min-width: 769px) { .mobile-view-btn { display: none; } }
+      `}</style>
+
+      {/* Floating Button for Mobile View */}
+      <button className="mobile-view-btn" onClick={toggleMobileView} title="Mobile View">
+        <Monitor size={24} />
+      </button>
 
       {/* ── Top nav ── */}
       <header style={{
         background: "white", borderBottom: "1.5px solid #e5e7eb",
-        padding: "0 24px", height: 60,
-        display: "flex", alignItems: "center", gap: 16,
+        padding: "0 16px", height: 60,
+        display: "flex", alignItems: "center", gap: 12,
         position: "sticky", top: 0, zIndex: 50,
       }}>
-        <button onClick={() => router.push("/")} style={{ background: "none", border: "1.5px solid #e5e7eb", borderRadius: 10, padding: "7px 10px", cursor: "pointer", color: "#374151", display: "flex", alignItems: "center" }}>
+        <button onClick={() => router.push("/")} style={{ background: "none", border: "1.5px solid #e5e7eb", borderRadius: 10, padding: "7px", cursor: "pointer", color: "#374151", display: "flex" }}>
           <ChevronLeft size={20} />
         </button>
 
-        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 4 }}>
           {isEditingName ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input autoFocus value={editedName} onChange={e => setEditedName(e.target.value)} onKeyDown={e => e.key === "Enter" && handleNameSave()} onBlur={handleNameSave} style={{ margin: 0, fontWeight: 800, fontSize: 17, color: "#111827", border: "1.5px solid #6d28d9", borderRadius: 8, padding: "2px 8px", outline: "none" }} />
-              <button onClick={handleNameSave} style={{ background: "none", border: "none", cursor: "pointer", color: "#6d28d9", display: "flex" }}><Check size={18} /></button>
-            </div>
+            <input autoFocus value={editedName} onChange={e => setEditedName(e.target.value)} onBlur={handleNameSave} style={{ width: "100%", fontWeight: 800, fontSize: 16, color: "#111827", border: "1.5px solid #6d28d9", borderRadius: 8, padding: "2px 8px", outline: "none" }} />
           ) : (
             <>
-              <h1 style={{ margin: 0, fontWeight: 800, fontSize: 17, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentSession?.name || "Untitled"}</h1>
-              <button onClick={() => setIsEditingName(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 4 }} title="Edit name"><Edit3 size={16} /></button>
+              <h1 style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentSession?.name || "Untitled"}</h1>
+              <button onClick={() => setIsEditingName(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 4 }}><Edit3 size={14} /></button>
             </>
           )}
         </div>
 
-        {/* Save Status Indicator */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: saveStatus === "saving" ? "#6d28d9" : "#10b981", transition: "all 0.3s opacity", opacity: saveStatus === "idle" ? 0.4 : 1, marginRight: 10 }}>
-           {saveStatus === "saving" ? <><div className="animate-spin" style={{ width: 12, height: 12, border: "2px solid #ddd6fe", borderTopColor: "#6d28d9", borderRadius: "50%" }} /> Saving...</> : saveStatus === "saved" ? <><Check size={14} /> Saved</> : <><Check size={14} style={{ opacity: 0.5 }} /> Ready</>}
+        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: saveStatus === "saving" ? "#6d28d9" : "#10b981", opacity: saveStatus === "idle" ? 0.4 : 1 }}>
+           {saveStatus === "saving" ? <div className="animate-spin" style={{ width: 10, height: 10, border: "2px solid #ddd6fe", borderTopColor: "#6d28d9", borderRadius: "50%" }} /> : <Check size={12} />}
+           <span className="mobile-hide">{saveStatus === "saving" ? "Saving" : "Saved"}</span>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={toggleFullscreenAndLandscape}
+        <button
+            onClick={toggleMobileView}
+            className="mobile-hide"
             style={{
               display: "flex", alignItems: "center", gap: 8,
-              padding: "7px 14px", borderRadius: 10,
-              background: "#6d28d9", color: "white",
-              border: "none", fontWeight: 700, fontSize: 12,
-              cursor: "pointer", boxShadow: "0 4px 10px rgba(109,40,217,0.2)"
+              padding: "6px 12px", borderRadius: 10,
+              background: isFullscreen ? "#10b981" : "#6d28d9", color: "white",
+              border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer"
             }}
           >
-            <Maximize2 size={16} /> <span className="mobile-hide">Focus Mode</span>
+            <Maximize2 size={14} /> Mobile View
           </button>
-        </div>
       </header>
 
       {/* ── Main Layout ── */}
-      <div className="responsive-grid" style={{ maxWidth: 1440, margin: "0 auto", padding: 24 }}>
-        {/* Left Column */}
+      <div className="responsive-grid" style={{ maxWidth: 1440, margin: "0 auto", padding: "16px 24px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-          <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#111827" }}>Waveform</h2>
-              <span style={{ fontFamily: "monospace", fontSize: 13, fontWeight: 700, background: "#f5f3ff", border: "1.5px solid #c4b5fd", borderRadius: 8, padding: "3px 10px", color: "#6d28d9" }}>{formatTime(currentTime)} / {formatTime(duration)}</span>
+          <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>Waveform</h2>
+              <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, background: "#f5f3ff", border: "1px solid #c4b5fd", borderRadius: 6, padding: "2px 8px", color: "#6d28d9" }}>{formatTime(currentTime)} / {formatTime(duration)}</span>
             </div>
             <WaveformPlayer />
           </div>
 
-          <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 16, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <button onClick={() => addMarker({ id: Math.random().toString(36).slice(2, 10), time: currentTime, label: `M${(currentSession?.markers.length ?? 0) + 1}` })} disabled={!isReady} style={{ padding: "9px 18px", borderRadius: 10, background: isReady ? "#6d28d9" : "#e5e7eb", color: isReady ? "white" : "#9ca3af", border: "none", fontWeight: 700, fontSize: 14, cursor: isReady ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 8 }}>
-              <MapPin size={15} /> Add Marker
+          <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 16, padding: "12px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={() => addMarker({ id: Math.random().toString(36).slice(2, 10), time: currentTime, label: `M${(currentSession?.markers.length ?? 0) + 1}` })} disabled={!isReady} style={{ padding: "8px 16px", borderRadius: 10, background: isReady ? "#6d28d9" : "#e5e7eb", color: isReady ? "white" : "#9ca3af", border: "none", fontWeight: 700, fontSize: 13, cursor: isReady ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 6 }}>
+              <MapPin size={14} /> Marker
             </button>
             {(currentSession?.markers ?? []).map(m => (
-              <span key={m.id} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#ede9fe", color: "#5b21b6", border: "1.5px solid #c4b5fd", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 700 }}>
-                <MapPin size={11} /> {m.label} · {formatTime(m.time)}
-                <button onClick={() => removeMarker(m.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#a78bfa", padding: 0, marginLeft: 2, display: "flex" }}><Trash2 size={11} /></button>
+              <span key={m.id} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#ede9fe", color: "#5b21b6", border: "1px solid #c4b5fd", borderRadius: 8, padding: "3px 8px", fontSize: 11, fontWeight: 700 }}>
+                {m.label} · {formatTime(m.time)}
+                <button onClick={() => removeMarker(m.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#a78bfa", display: "flex" }}><Trash2 size={11} /></button>
               </span>
             ))}
           </div>
 
-          <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 20 }}>
+          <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 16 }}>
             <RegionList />
           </div>
         </div>
 
         {/* Right Column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, paddingBottom: 12, borderBottom: "1.5px solid #f3f4f6" }}>
-              <Layers size={17} style={{ color: "#6d28d9" }} />
-              <h3 style={{ margin: 0, fontWeight: 700, fontSize: 14, color: "#111827" }}>Session Info</h3>
+          <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, paddingBottom: 8, borderBottom: "1px solid #f3f4f6" }}>
+              <Layers size={15} style={{ color: "#6d28d9" }} />
+              <h3 style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#1e1b4b" }}>Session Info</h3>
             </div>
             {[["Duration", formatTime(duration)], ["Markers", String(currentSession?.markers.length ?? 0)], ["Regions", String(currentSession?.regions.length ?? 0)]].map(([l, v]) => (
-              <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f9fafb" }}>
-                <span style={{ fontSize: 13, color: "#6b7280" }}>{l}</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: "#1e1b4b", fontFamily: "monospace" }}>{v}</span>
+              <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13 }}>
+                <span style={{ color: "#6b7280" }}>{l}</span>
+                <span style={{ fontWeight: 800, color: "#1e1b4b", fontFamily: "monospace" }}>{v}</span>
               </div>
             ))}
           </div>
-          <div style={{ background: "#f5f3ff", border: "1.5px solid #c4b5fd", borderRadius: 20, padding: 20 }}>
+
+          <div className="mobile-hide" style={{ background: "#f5f3ff", border: "1.5px solid #c4b5fd", borderRadius: 20, padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <Info size={15} style={{ color: "#6d28d9" }} />
               <h3 style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#5b21b6" }}>Shortcuts</h3>

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/hooks/useSession";
 import { motion, AnimatePresence } from "framer-motion";
-import { Music2, Play, Trash2, Search, Clock, Headphones, Scissors, Plus, Upload } from "lucide-react";
+import { Music2, Play, Trash2, Search, Clock, Headphones, Scissors, Plus, Upload, Monitor } from "lucide-react";
 import AudioCutterModal from "@/components/upload/AudioCutterModal";
 
 export default function Home() {
@@ -14,6 +14,31 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [isCutterOpen, setIsCutterOpen] = useState(false);
   const [cutterFile, setCutterFile] = useState<File | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
+  const toggleMobileView = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        if (screen.orientation && (screen.orientation as any).lock) {
+            await (screen.orientation as any).lock("landscape").catch(() => {});
+        }
+      } else {
+        await document.exitFullscreen();
+        if (screen.orientation && (screen.orientation as any).unlock) {
+            (screen.orientation as any).unlock();
+        }
+      }
+    } catch (e) {
+      console.error("Mobile view error", e);
+    }
+  };
 
   const filteredSessions = useMemo(() => {
     if (!sessions) return [];
@@ -42,26 +67,19 @@ export default function Home() {
     input.click();
   };
 
-  /**
-   * Generates a 5-second sample audio (Sine wave) in-memory 
-   * to avoid CORS issues with external URLs.
-   */
   const handleTryDemo = async () => {
     setIsUploading(true);
     try {
       const sampleRate = 44100;
-      const duration = 5; // 5 seconds
+      const duration = 5; 
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const buffer = audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
       const data = buffer.getChannelData(0);
-
-      // Create a simple pleasant sine wave melody for the demo
       for (let i = 0; i < buffer.length; i++) {
         const t = i / sampleRate;
-        const freq = 440 + Math.sin(t * 2) * 50; // Wobbly pitch
-        data[i] = Math.sin(2 * Math.PI * freq * t) * Math.exp(-t * 0.5); // Decay
+        const freq = 440 + Math.sin(t * 2) * 50; 
+        data[i] = Math.sin(2 * Math.PI * freq * t) * Math.exp(-t * 0.5);
       }
-
       const wavBlob = bufferToWav(buffer);
       const file = new File([wavBlob], "Demo_Practice.wav", { type: "audio/wav" });
       const id = await createSession("Sample Demo Session", file);
@@ -90,12 +108,28 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } } 
+        .animate-spin { animation: spin 0.8s linear infinite; }
+        .mobile-view-btn { 
+           position: fixed; bottom: 30px; right: 20px; z-index: 100;
+           background: #6d28d9; color: white; border: none; border-radius: 50%;
+           width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;
+           box-shadow: 0 8px 20px rgba(109,40,217,0.4); cursor: pointer; transition: all 0.2s;
+        }
+        .mobile-view-btn:active { transform: scale(0.9); }
+        @media (min-width: 769px) { .mobile-view-btn { display: none; } }
+      `}</style>
+
+      {/* Floating Button for Mobile View */}
+      <button className="mobile-view-btn" onClick={toggleMobileView} title="Mobile View">
+        <Monitor size={24} />
+      </button>
 
       {/* ── Header ── */}
       <header style={{
         background: "white", borderBottom: "1.5px solid #e5e7eb",
-        padding: "0 32px", height: 64,
+        padding: "0 24px", height: 64,
         display: "flex", alignItems: "center", justifyContent: "space-between",
         position: "sticky", top: 0, zIndex: 50,
       }}>
@@ -126,15 +160,16 @@ export default function Home() {
             <Plus size={16} /> New Session
           </button>
           <button
-            onClick={handleCutterClick}
+            onClick={toggleMobileView}
+            className="mobile-hide"
             style={{
               display: "flex", alignItems: "center", gap: 8,
               padding: "8px 16px", borderRadius: 10,
-              background: "#ede9fe", color: "#6d28d9",
+              background: isFullscreen ? "#10b981" : "#ede9fe", color: isFullscreen ? "white" : "#6d28d9",
               border: "1.5px solid #c4b5fd", fontWeight: 700, fontSize: 13, cursor: "pointer"
             }}
           >
-            <Scissors size={16} /> Audio Cutter
+            <Monitor size={16} /> Mobile View
           </button>
         </div>
       </header>
@@ -148,7 +183,6 @@ export default function Home() {
           </h1>
           <p style={{ margin: "16px 0 0", fontSize: 17, color: "#6b7280", maxWidth: 600, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>
             The ultimate tool for precision looping, speed adjustment, and audio segmentation. 
-            Perfect for chanting, music, and analysis.
           </p>
         </section>
 
@@ -185,7 +219,7 @@ export default function Home() {
               <h3 style={{ margin: 0, fontWeight: 800, color: "#1e1b4b", fontSize: 18 }}>Ready to start?</h3>
               <p style={{ margin: "8px 0 24px", color: "#6b7280" }}>Generate a demo or upload your own file.</p>
               
-              <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
                 <button
                     onClick={handleUpload}
                     style={{ padding: "12px 24px", borderRadius: 12, background: "#6d28d9", color: "white", border: "none", fontWeight: 700, cursor: "pointer" }}
@@ -253,7 +287,6 @@ export default function Home() {
   );
 }
 
-// WAV helper for demo generation
 function bufferToWav(abuffer: AudioBuffer) {
   let numOfChan = abuffer.numberOfChannels,
       length = abuffer.length * numOfChan * 2 + 44,
@@ -261,16 +294,13 @@ function bufferToWav(abuffer: AudioBuffer) {
       view = new DataView(buffer),
       channels = [], i, sample,
       offset = 0, pos = 0;
-
   function setUint16(data: any) { view.setUint16(pos, data, true); pos += 2; }
   function setUint32(data: any) { view.setUint32(pos, data, true); pos += 4; }
-
   setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
   setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
   setUint32(abuffer.sampleRate); setUint32(abuffer.sampleRate * 2 * numOfChan);
   setUint16(numOfChan * 2); setUint16(16);
   setUint32(0x61746164); setUint32(length - pos - 4);
-
   for(i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
   while(pos < length) {
     for(i = 0; i < numOfChan; i++) {
