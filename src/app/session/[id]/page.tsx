@@ -17,7 +17,8 @@ export default function SessionStudio() {
   const { 
     currentSession, addMarker, removeMarker, currentTime, 
     isReady, duration, playMode, globalLoopCount, 
-    selectedRegionIds, loopGap, setLoopGap, waitingTimeRemaining
+    selectedRegionIds, loopGap, setLoopGap, waitingTimeRemaining,
+    practiceProgress
   } = useSessionStore();
   
   const [isLoaded, setIsLoaded] = useState(false);
@@ -188,15 +189,16 @@ export default function SessionStudio() {
           </div>
 
           <div style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: 16, padding: "12px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={() => addMarker({ id: Math.random().toString(36).slice(2, 10), time: currentTime, label: `M${(currentSession?.markers.length ?? 0) + 1}` })} disabled={!isReady} style={{ padding: "8px 16px", borderRadius: 10, background: isReady ? "#6d28d9" : "#e5e7eb", color: isReady ? "white" : "#9ca3af", border: "none", fontWeight: 700, fontSize: 13, cursor: isReady ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 6 }}>
-              <MapPin size={14} /> Marker
-            </button>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#6b7280", marginRight: 4 }}>Markers:</span>
             {(currentSession?.markers ?? []).map(m => (
               <span key={m.id} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#ede9fe", color: "#5b21b6", border: "1px solid #c4b5fd", borderRadius: 8, padding: "3px 8px", fontSize: 11, fontWeight: 700 }}>
                 {m.label}  {formatTime(m.time)}
                 <button onClick={() => removeMarker(m.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#a78bfa", display: "flex" }}><Trash2 size={11} /></button>
               </span>
             ))}
+            {currentSession?.markers.length === 0 && (
+              <span style={{ fontSize: 12, color: "#9ca3af", fontStyle: "italic" }}>No markers added yet. Use "Add Marker" on the waveform.</span>
+            )}
           </div>
 
           {/* Practice Timeline */}
@@ -217,23 +219,48 @@ export default function SessionStudio() {
                 </div>
 
                 <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }} className="hide-scrollbar">
-                    {currentSession?.regions.filter(r => selectedRegionIds.includes(r.id)).map((r, i) => (
-                        <div key={r.id} style={{
-                            background: "rgba(255,255,255,0.15)", borderRadius: 10, padding: "8px 12px",
-                            minWidth: 100, border: "1px solid rgba(255,255,255,0.2)",
-                        }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, marginBottom: 2 }}>{i+1}</div>
-                            <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.label}</div>
-                            <div style={{ fontSize: 11, fontWeight: 700 }}>{r.repeatCount}</div>
-                        </div>
-                    ))}
+                    {currentSession?.regions.filter(r => selectedRegionIds.includes(r.id)).map((r, i) => {
+                        const isActive = practiceProgress.regionId === r.id;
+                        return (
+                            <div key={r.id} style={{
+                                background: isActive ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.15)", 
+                                borderRadius: 10, padding: "8px 12px",
+                                minWidth: 100, border: isActive ? "2px solid white" : "1px solid rgba(255,255,255,0.2)",
+                                transition: "all 0.2s",
+                            }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7 }}>{i+1}</div>
+                                    {isActive && (
+                                        <div style={{ 
+                                            background: "#fbbf24", color: "#1e1b4b", padding: "1px 4px", 
+                                            borderRadius: 4, fontSize: 8, fontWeight: 900 
+                                        }}>ACTIVE</div>
+                                    )}
+                                </div>
+                                <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.label}</div>
+                                <div style={{ fontSize: 11, fontWeight: 700 }}>
+                                    {isActive ? (
+                                        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                                            <span style={{ color: "#fbbf24" }}>{practiceProgress.regionRepeat}</span>
+                                            <span style={{ opacity: 0.6, fontSize: 9 }}>/ {r.repeatCount === "infinite" ? "∞" : r.repeatCount}x</span>
+                                        </div>
+                                    ) : (
+                                        <span style={{ opacity: 0.6 }}>{r.repeatCount === "infinite" ? "∞" : r.repeatCount}x</span>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
                     <div style={{ display: "flex", alignItems: "center", padding: "0 4px", fontSize: 16, opacity: 0.5 }}></div>
                     <div style={{
                         background: "rgba(255,255,255,0.25)", borderRadius: 10, padding: "8px 12px",
                         minWidth: 80, border: "1.5px solid white",
                     }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.9, marginBottom: 2 }}>Global</div>
-                        <div style={{ fontWeight: 800, fontSize: 14 }}>{globalLoopCount}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.9, marginBottom: 2 }}>Global Pass</div>
+                        <div style={{ fontWeight: 800, fontSize: 14 }}>
+                            <span style={{ color: "#fbbf24" }}>{practiceProgress.globalPass}</span>
+                            <span style={{ fontSize: 11, opacity: 0.7 }}> / {globalLoopCount === "infinite" ? "∞" : globalLoopCount}</span>
+                        </div>
                     </div>
                 </div>
               </div>

@@ -18,6 +18,7 @@ export const viewport: Viewport = {
 };
 
 import CreatorBadge from "@/components/branding/CreatorBadge";
+import NotificationToast from "@/components/notifications/NotificationToast";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         {children}
         <CreatorBadge />
+        <NotificationToast />
       </body>
     </html>
   );

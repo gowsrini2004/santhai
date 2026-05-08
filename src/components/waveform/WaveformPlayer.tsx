@@ -112,7 +112,7 @@ export default function WaveformPlayer() {
                                 position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)",
                                 width: 10, height: 10, borderRadius: "50%", background: "#6d28d9",
                                 border: "2px solid white", boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
-                                pointerEvents: "auto", cursor: "pointer",
+                                pointerEvents: "none", cursor: "default",
                             }} title={marker.label} />
                             
                             <div style={{
@@ -142,11 +142,15 @@ export default function WaveformPlayer() {
             </span>
             <button
               onClick={() => addMarker({ id: Math.random().toString(36).slice(2,9), time: currentTime, label: `M${markers.length + 1}` })}
+              disabled={!isReady}
               style={{
-                  background: "#6d28d9", color: "white",
+                  background: !isReady ? "#e5e7eb" : "#6d28d9", 
+                  color: !isReady ? "#9ca3af" : "white", 
                   borderRadius: 10, padding: "6px 14px", fontSize: 12, fontWeight: 800,
-                  border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-                boxShadow: "0 4px 10px rgba(109,40,217,0.2)",
+                  border: "none", 
+                  cursor: !isReady ? "not-allowed" : "pointer", 
+                  display: "flex", alignItems: "center", gap: 6,
+                  boxShadow: !isReady ? "none" : "0 4px 10px rgba(109,40,217,0.2)",
               }}
             >
                 <MapPin size={14} /> Add Marker

@@ -16,8 +16,15 @@ interface SessionState {
   playMode: "standard" | "looping";
   loopGap: number; // in milliseconds
   waitingTimeRemaining: number; // in milliseconds
+  practiceProgress: {
+    regionId: string | null;
+    regionRepeat: number; // 1-indexed
+    globalPass: number; // 1-indexed
+  };
+  notification: { message: string, type: "error" | "info" } | null;
   
   // Actions
+  setNotification: (notif: { message: string, type: "error" | "info" } | null) => void;
   setIsReady: (ready: boolean) => void;
   setSession: (session: Session | null) => void;
   setIsPlaying: (isPlaying: boolean) => void;
@@ -32,6 +39,7 @@ interface SessionState {
   setPlayMode: (mode: "standard" | "looping") => void;
   setLoopGap: (gap: number) => void;
   setWaiting: (ms: number) => void;
+  setPracticeProgress: (progress: SessionState["practiceProgress"]) => void;
   
   // Marker/Region actions
   addMarker: (marker: Marker) => void;
@@ -55,7 +63,14 @@ export const useSessionStore = create<SessionState>((set) => ({
   playMode: "looping",
   loopGap: 0,
   waitingTimeRemaining: 0,
+  practiceProgress: {
+    regionId: null,
+    regionRepeat: 1,
+    globalPass: 1,
+  },
+  notification: null,
 
+  setNotification: (notification) => set({ notification }),
   setIsReady: (isReady) => set({ isReady }),
   setSession: (session) => set({ currentSession: session, zoom: 0 }),
   setIsPlaying: (isPlaying) => set({ isPlaying }),
@@ -70,9 +85,22 @@ export const useSessionStore = create<SessionState>((set) => ({
   setPlayMode: (mode) => set({ playMode: mode }),
   setLoopGap: (gap) => set({ loopGap: gap }),
   setWaiting: (ms) => set({ waitingTimeRemaining: ms }),
+  setPracticeProgress: (progress) => set({ practiceProgress: progress }),
 
   addMarker: (marker) => set((state) => {
     if (!state.currentSession) return state;
+
+    // VALIDATION
+    if (marker.time < 0.1) {
+      return { ...state, notification: { message: "Cannot add marker at the very start.", type: "error" } };
+    }
+    if (marker.time > state.duration - 0.1) {
+      return { ...state, notification: { message: "Cannot add marker at the very end.", type: "error" } };
+    }
+    if (state.currentSession.markers.some(m => Math.abs(m.time - marker.time) < 0.15)) {
+      return { ...state, notification: { message: "A marker already exists at this position.", type: "error" } };
+    }
+
     let markers = [...state.currentSession.markers, marker].sort((a, b) => a.time - b.time);
     markers = markers.map((m, i) => ({ ...m, label: `M${i + 1}` }));
     
@@ -88,8 +116,8 @@ export const useSessionStore = create<SessionState>((set) => ({
         id: existingRegion?.id || Math.random().toString(36).substr(2, 9),
         start,
         end,
-        label: existingRegion?.label || `Region ${regions.length + 1}`,
-        repeatCount: existingRegion?.repeatCount || "infinite",
+        label: `Region ${i + 1}`,
+        repeatCount: existingRegion?.repeatCount || 1,
       });
     }
 
@@ -98,7 +126,8 @@ export const useSessionStore = create<SessionState>((set) => ({
         ...state.currentSession,
         markers,
         regions,
-      }
+      },
+      notification: { message: "Marker added successfully.", type: "info" }
     };
   }),
 

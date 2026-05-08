@@ -16,50 +16,59 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
   const globalLoopIteration = useRef(0);
   const currentRegionIndex = useRef(0);
   const isWaiting = useRef(false);
-  const { loopGap, setWaiting } = useSessionStore();
+  const lastProcessedEnd = useRef<string | null>(null); // To prevent double-triggering same end
+  
+  const { loopGap, setWaiting, setPracticeProgress } = useSessionStore();
 
   const handleTimeUpdate = useCallback((currentTime: number) => {
     const ws = getWaveSurferInstance();
     if (!ws || !currentSession || isWaiting.current) return;
 
-    // ... (rest of the logic remains similar but uses setWaiting)
-
-    // STANDARD PLAYBACK MODE
-    if (playMode === "standard") {
-      if (currentTime >= ws.getDuration() - 0.05) {
-        if (loopMode === "infinite") {
-          if (loopGap > 0) {
-              isWaiting.current = true;
-              ws.pause();
-              setTimeout(() => {
-                  ws.setTime(0);
-                  ws.play();
-                  isWaiting.current = false;
-              }, loopGap);
-          } else {
-              ws.setTime(0);
-              ws.play();
-          }
-        } else {
-          ws.pause();
-        }
-      }
-      return;
-    }
-
-    // LOOPING MODE
     if (playMode === "looping") {
-      const regions = currentSession.regions.filter(r => selectedRegionIds.includes(r.id));
-      if (regions.length === 0) return;
+      const selectedRegions = currentSession.regions
+        .filter(r => selectedRegionIds.includes(r.id))
+        .sort((a, b) => a.start - b.start);
 
-      const active = regions[currentRegionIndex.current];
+      if (selectedRegions.length === 0) return;
+
+      const active = selectedRegions[currentRegionIndex.current];
       if (!active) {
           currentRegionIndex.current = 0;
           return;
       }
 
-      if (currentTime >= active.end - 0.02) { // Tiny buffer to ensure we catch it
-        const repeatsNeeded = active.repeatCount === "infinite" ? Infinity : active.repeatCount;
+      // 1. Update progress state in store if changed
+      const currentRepeat = (regionRepeatCounts.current[active.id] || 0) + 1;
+      const currentPass = globalLoopIteration.current + 1;
+      
+      // Update store only if values changed to avoid re-renders
+      const progress = useSessionStore.getState().practiceProgress;
+      if (progress.regionId !== active.id || progress.regionRepeat !== currentRepeat || progress.globalPass !== currentPass) {
+        setPracticeProgress({
+          regionId: active.id,
+          regionRepeat: currentRepeat,
+          globalPass: currentPass
+        });
+      }
+
+
+      // 1. Handle initial seek to first region if we are far away
+      if (currentTime < active.start - 0.5 || currentTime > active.end + 0.5) {
+          // If we are way outside the active region, seek to start
+          // but ONLY if we aren't already waiting or processing
+          ws.setTime(active.start);
+          return;
+      }
+
+      // 2. Detect end of region
+      const endThreshold = active.end - 0.05;
+      const isAtEnd = currentTime >= endThreshold;
+      const triggerId = `${active.id}_${currentRegionIndex.current}_${globalLoopIteration.current}_${regionRepeatCounts.current[active.id] || 0}`;
+
+      if (isAtEnd && lastProcessedEnd.current !== triggerId) {
+        lastProcessedEnd.current = triggerId;
+        
+        const repeatsNeeded = active.repeatCount === "infinite" ? Infinity : Number(active.repeatCount);
         const currentRepeats = regionRepeatCounts.current[active.id] || 0;
 
         const executeSeek = (targetTime: number) => {
@@ -67,7 +76,7 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
                 isWaiting.current = true;
                 ws.pause();
                 ws.setTime(targetTime);
-
+                
                 let remaining = loopGap;
                 setWaiting(remaining);
                 const interval = setInterval(() => {
@@ -78,43 +87,62 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
                 setTimeout(() => {
                     clearInterval(interval);
                     setWaiting(0);
-                    ws.play();
+                    if (useSessionStore.getState().isPlaying) ws.play();
                     isWaiting.current = false;
                 }, loopGap);
             } else {
                 ws.setTime(targetTime);
-                ws.play();
+                if (useSessionStore.getState().isPlaying) ws.play();
             }
         };
 
         if (currentRepeats < repeatsNeeded - 1) {
+          // Inner Repeat
           regionRepeatCounts.current[active.id] = currentRepeats + 1;
           executeSeek(active.start);
         } else {
+          // Move to next
           regionRepeatCounts.current[active.id] = 0;
           const nextIdx = currentRegionIndex.current + 1;
 
-          if (nextIdx < regions.length) {
+          if (nextIdx < selectedRegions.length) {
             currentRegionIndex.current = nextIdx;
-            executeSeek(regions[nextIdx].start);
+            executeSeek(selectedRegions[nextIdx].start);
           } else {
+            // Global increment
             globalLoopIteration.current += 1;
-            const globalLimit = globalLoopCount === "infinite" ? Infinity : globalLoopCount;
+            const globalLimit = globalLoopCount === "infinite" ? Infinity : Number(globalLoopCount);
 
             if (globalLoopIteration.current < globalLimit) {
               currentRegionIndex.current = 0;
-              executeSeek(regions[0].start);
+              // IMPORTANT: Reset all counts for the new pass
+              regionRepeatCounts.current = {};
+              executeSeek(selectedRegions[0].start);
             } else {
-              // Finished all loops
+              // TERMINATE
               ws.pause();
+              useSessionStore.getState().setIsPlaying(false);
               globalLoopIteration.current = 0;
               currentRegionIndex.current = 0;
+              regionRepeatCounts.current = {};
+              lastProcessedEnd.current = null;
             }
           }
         }
       }
+    } else {
+      // STANDARD MODE
+      if (currentTime >= ws.getDuration() - 0.05) {
+        if (loopMode === "infinite") {
+           ws.setTime(0);
+           ws.play();
+        } else {
+          ws.pause();
+          useSessionStore.getState().setIsPlaying(false);
+        }
+      }
     }
-  }, [currentSession, loopMode, globalLoopCount, selectedRegionIds, playMode, loopGap]);
+  }, [currentSession, loopMode, globalLoopCount, selectedRegionIds, playMode, loopGap, setWaiting]);
 
   useEffect(() => {
     const ws = getWaveSurferInstance();
