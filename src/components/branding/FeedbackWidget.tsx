@@ -186,7 +186,7 @@ export default function FeedbackWidget() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 2 }}>
                 <button 
                   type="button" 
-                  onClick={() => { setMode(null); setImage(null); setSubjectText(""); setMessage(""); }}
+                  onClick={() => { setMode(null); setSubjectText(""); setMessage(""); }}
                   style={{ background: "none", border: "none", color: "#6d28d9", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
                 >
                   Change Type
