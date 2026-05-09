@@ -70,23 +70,18 @@ export default function Home() {
   const handleTryDemo = async () => {
     setIsUploading(true);
     try {
-      const sampleRate = 44100;
-      const duration = 5; 
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const buffer = audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < buffer.length; i++) {
-        const t = i / sampleRate;
-        const freq = 440 + Math.sin(t * 2) * 50; 
-        data[i] = Math.sin(2 * Math.PI * freq * t) * Math.exp(-t * 0.5);
-      }
-      const wavBlob = bufferToWav(buffer);
-      const file = new File([wavBlob], "Demo_Practice.wav", { type: "audio/wav" });
-      const id = await createSession("Sample Demo Session", file);
+      // Fetching from the local public folder to avoid CORS issues
+      const response = await fetch("/demo-chant.mp3");
+      
+      if (!response.ok) throw new Error("Could not find demo-chant.mp3 in public folder");
+      
+      const blob = await response.blob();
+      const file = new File([blob], "Om_Sthapakaya_Cha_Dharmasya.mp3", { type: "audio/mp3" });
+      const id = await createSession("Vedic Chant - Sample Session", file);
       router.push(`/session/${id}`);
     } catch (e) {
       console.error("Demo failed", e);
-      alert("Failed to generate demo. Please try uploading your own audio file.");
+      alert("Demo file not found. Please ensure 'demo-chant.mp3' is in your public folder.");
     } finally {
       setIsUploading(false);
     }
@@ -297,31 +292,4 @@ export default function Home() {
       <AudioCutterModal isOpen={isCutterOpen} onClose={() => { setIsCutterOpen(false); setCutterFile(null); }} file={cutterFile} />
     </div>
   );
-}
-
-function bufferToWav(abuffer: AudioBuffer) {
-  let numOfChan = abuffer.numberOfChannels,
-      length = abuffer.length * numOfChan * 2 + 44,
-      buffer = new ArrayBuffer(length),
-      view = new DataView(buffer),
-      channels = [], i, sample,
-      offset = 0, pos = 0;
-  function setUint16(data: any) { view.setUint16(pos, data, true); pos += 2; }
-  function setUint32(data: any) { view.setUint32(pos, data, true); pos += 4; }
-  setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
-  setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
-  setUint32(abuffer.sampleRate); setUint32(abuffer.sampleRate * 2 * numOfChan);
-  setUint16(numOfChan * 2); setUint16(16);
-  setUint32(0x61746164); setUint32(length - pos - 4);
-  for(i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
-  while(pos < length) {
-    for(i = 0; i < numOfChan; i++) {
-      sample = Math.max(-1, Math.min(1, channels[i][offset]));
-      sample = (sample < 0 ? sample * 0x8000 : sample * 0x7FFF) | 0;
-      view.setInt16(pos, sample, true);
-      pos += 2;
-    }
-    offset++;
-  }
-  return new Blob([buffer], {type: "audio/wav"});
 }

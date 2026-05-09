@@ -17,8 +17,10 @@ export default function SessionStudio() {
   const { 
     currentSession, addMarker, removeMarker, currentTime, 
     isReady, duration, playMode, globalLoopCount, 
-    selectedRegionIds, loopGap, setLoopGap, waitingTimeRemaining,
-    practiceProgress
+    selectedRegionIds, loopGap, setLoopGap, loopGapEnabled, setLoopGapEnabled,
+    waitingTimeRemaining, practiceProgress,
+    globalRegionRepeatEnabled, setGlobalRegionRepeatEnabled,
+    globalRegionRepeatCount, setGlobalRegionRepeatCount
   } = useSessionStore();
   
   const [isLoaded, setIsLoaded] = useState(false);
@@ -73,8 +75,13 @@ export default function SessionStudio() {
     const selectedRegions = currentSession.regions.filter(r => selectedRegionIds.includes(r.id));
     if (selectedRegions.length === 0) return 0;
 
+    const { globalRegionRepeatEnabled, globalRegionRepeatCount } = useSessionStore.getState();
+
     const sequenceDuration = selectedRegions.reduce((acc, r) => {
-        const reps = r.repeatCount === "infinite" ? 1 : r.repeatCount;
+        let reps = (r.repeatCount === "infinite" ? 1 : r.repeatCount) as number;
+        if (globalRegionRepeatEnabled) {
+          reps = globalRegionRepeatCount;
+        }
         return acc + (r.end - r.start) * reps;
     }, 0);
 
@@ -221,6 +228,9 @@ export default function SessionStudio() {
                 <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }} className="hide-scrollbar">
                     {currentSession?.regions.filter(r => selectedRegionIds.includes(r.id)).map((r, i) => {
                         const isActive = practiceProgress.regionId === r.id;
+                        const { globalRegionRepeatEnabled, globalRegionRepeatCount } = useSessionStore.getState();
+                        const effectiveRepeat = globalRegionRepeatEnabled ? globalRegionRepeatCount : r.repeatCount;
+
                         return (
                             <div key={r.id} style={{
                                 background: isActive ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.15)", 
@@ -242,10 +252,10 @@ export default function SessionStudio() {
                                     {isActive ? (
                                         <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                                             <span style={{ color: "#fbbf24" }}>{practiceProgress.regionRepeat}</span>
-                                            <span style={{ opacity: 0.6, fontSize: 9 }}>/ {r.repeatCount === "infinite" ? "∞" : r.repeatCount}x</span>
+                                            <span style={{ opacity: 0.6, fontSize: 9 }}>/ {effectiveRepeat === "infinite" ? "∞" : effectiveRepeat}x</span>
                                         </div>
                                     ) : (
-                                        <span style={{ opacity: 0.6 }}>{r.repeatCount === "infinite" ? "∞" : r.repeatCount}x</span>
+                                        <span style={{ opacity: 0.6 }}>{effectiveRepeat === "infinite" ? "∞" : effectiveRepeat}x</span>
                                     )}
                                 </div>
                             </div>
@@ -293,11 +303,17 @@ export default function SessionStudio() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>Loop Gap</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: "#1e1b4b" }}>Loop Gap</label>
+                        <span style={{ 
+                            background: loopGapEnabled ? "#6d28d9" : "#e5e7eb", 
+                            color: loopGapEnabled ? "white" : "#6b7280", padding: "1px 6px", borderRadius: 4, fontSize: 8, fontWeight: 900 
+                        }}>{loopGapEnabled ? "ON" : "OFF"}</span>
+                    </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         {waitingTimeRemaining > 0 && (
                             <span style={{ 
-                                background: "#ede9fe", color: "#6d28d9", padding: "2px 8px", 
+                                background: "#f5f3ff", color: "#6d28d9", padding: "2px 8px", 
                                 borderRadius: 6, fontSize: 10, fontWeight: 900, 
                                 display: "flex", alignItems: "center", gap: 4,
                                 border: "1px solid #c4b5fd",
@@ -306,30 +322,96 @@ export default function SessionStudio() {
                                 WAITING: {(waitingTimeRemaining/1000).toFixed(1)}s
                             </span>
                         )}
-                        <span style={{ fontSize: 12, fontWeight: 800, color: "#6d28d9" }}>{loopGap === 0 ? "None" : `${loopGap/1000}s`}</span>
-                    </div>
-                </div>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {[0, 500, 1000, 2000, 3000, 5000, 10000].map(val => (
-                        <button
-                            key={val}
-                            onClick={() => setLoopGap(val)}
+                        <button 
+                            onClick={() => setLoopGapEnabled(!loopGapEnabled)}
                             style={{
-                                padding: "4px 8px", borderRadius: 8,
-                                border: "1.5px solid",
-                                borderColor: loopGap === val ? "#6d28d9" : "#e5e7eb",
-                                background: loopGap === val ? "#6d28d9" : "white",
-                                color: loopGap === val ? "white" : "#6b7280",
-                                fontWeight: 700, fontSize: 11, cursor: "pointer",
-                                transition: "all 0.12s",
+                                background: loopGapEnabled ? "#6d28d9" : "#e5e7eb",
+                                width: 36, height: 20, borderRadius: 10, border: "none", position: "relative", cursor: "pointer", transition: "all 0.2s"
                             }}
                         >
-                            {val === 0 ? "None" : val < 1000 ? "0.5s" : `${val/1000}s`}
+                            <div style={{
+                                position: "absolute", top: 2, left: loopGapEnabled ? 18 : 2,
+                                width: 16, height: 16, background: "white", borderRadius: "50%", transition: "all 0.2s"
+                            }} />
                         </button>
-                    ))}
+                    </div>
                 </div>
+
+                {loopGapEnabled && (
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", animation: "slideDown 0.2s ease-out" }}>
+                        {[500, 1000, 2000, 3000, 5000, 10000].map(val => (
+                            <button
+                                key={val}
+                                onClick={() => setLoopGap(val)}
+                                style={{
+                                    padding: "4px 8px", borderRadius: 8,
+                                    border: "1.5px solid",
+                                    borderColor: loopGap === val ? "#6d28d9" : "#e5e7eb",
+                                    background: loopGap === val ? "#6d28d9" : "white",
+                                    color: loopGap === val ? "white" : "#6b7280",
+                                    fontWeight: 700, fontSize: 11, cursor: "pointer",
+                                    transition: "all 0.12s",
+                                }}
+                            >
+                                {val < 1000 ? "0.5s" : `${val/1000}s`}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 <p style={{ margin: 0, fontSize: 10, color: "#9ca3af" }}>
                     Pause duration between repeats.
+                </p>
+            </div>
+
+            {/* Universal Repeat Override */}
+            <div style={{ marginTop: 8, paddingTop: 12, borderTop: "1px solid #f3f4f6" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: "#1e1b4b" }}>Universal Repeat</label>
+                        <span style={{ 
+                            background: globalRegionRepeatEnabled ? "#6d28d9" : "#e5e7eb", 
+                            color: globalRegionRepeatEnabled ? "white" : "#6b7280", padding: "1px 6px", borderRadius: 4, fontSize: 8, fontWeight: 900 
+                        }}>{globalRegionRepeatEnabled ? "ON" : "OFF"}</span>
+                    </div>
+                    <button 
+                        onClick={() => setGlobalRegionRepeatEnabled(!globalRegionRepeatEnabled)}
+                        style={{
+                            background: globalRegionRepeatEnabled ? "#6d28d9" : "#e5e7eb",
+                            width: 36, height: 20, borderRadius: 10, border: "none", position: "relative", cursor: "pointer", transition: "all 0.2s"
+                        }}
+                    >
+                        <div style={{
+                            position: "absolute", top: 2, left: globalRegionRepeatEnabled ? 18 : 2,
+                            width: 16, height: 16, background: "white", borderRadius: "50%", transition: "all 0.2s"
+                        }} />
+                    </button>
+                </div>
+
+                {globalRegionRepeatEnabled && (
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", animation: "slideDown 0.2s ease-out" }}>
+                        {[1, 2, 3, 4, 5, 7, 10].map(val => (
+                            <button
+                                key={val}
+                                onClick={() => setGlobalRegionRepeatCount(val)}
+                                style={{
+                                    padding: "4px 8px", borderRadius: 8,
+                                    border: "1.5px solid",
+                                    borderColor: globalRegionRepeatCount === val ? "#6d28d9" : "#e5e7eb",
+                                    background: globalRegionRepeatCount === val ? "#6d28d9" : "white",
+                                    color: globalRegionRepeatCount === val ? "white" : "#6b7280",
+                                    fontWeight: 700, fontSize: 11, cursor: "pointer",
+                                    transition: "all 0.12s",
+                                }}
+                            >
+                                {val}x
+                            </button>
+                        ))}
+                    </div>
+                )}
+                <p style={{ margin: "4px 0 0", fontSize: 10, color: "#9ca3af" }}>
+                    {globalRegionRepeatEnabled 
+                        ? `Overrides individual repeats. All regions will loop ${globalRegionRepeatCount}x.` 
+                        : "Regions will use their individual repeat settings."}
                 </p>
             </div>
           </div>

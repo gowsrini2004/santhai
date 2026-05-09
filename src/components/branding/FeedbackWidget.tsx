@@ -9,7 +9,7 @@ export default function FeedbackWidget() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<"bug" | "feedback" | null>(null);
-  
+
   // Show ONLY on the home page, hide in sessions
   const isHomePage = pathname === "/";
 
@@ -34,7 +34,7 @@ export default function FeedbackWidget() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // VALIDATION
     if (mode === "bug") {
       if (!subjectText || !message) {
@@ -48,21 +48,21 @@ export default function FeedbackWidget() {
       }
     }
 
-    const emailSubject = mode === "bug" 
-      ? `🚨 [BUG REPORT] - ${subjectText}` 
+    const emailSubject = mode === "bug"
+      ? `🚨 [BUG REPORT] - ${subjectText}`
       : `✨ [FEEDBACK] - SANTHAI STUDIO`;
-    
+
     const body = `Type: ${mode === "bug" ? "Bug Report" : "Feedback"}\n${mode === "bug" ? `Subject: ${subjectText}\n` : ""}Message:\n${message}`;
-    
+
     // Direct Gmail Web Compose URL
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=gowsrini2004@gmail.com&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(body)}`;
-    
+
     // Open in new tab
     window.open(gmailUrl, '_blank');
 
-    setNotification({ 
-      message: mode === "bug" ? "Opening Gmail to send bug report..." : "Opening Gmail to send feedback...", 
-      type: "info" 
+    setNotification({
+      message: mode === "bug" ? "Opening Gmail to send bug report..." : "Opening Gmail to send feedback...",
+      type: "info"
     });
 
     // Reset and close
@@ -75,21 +75,20 @@ export default function FeedbackWidget() {
   };
 
   return (
-    <div style={{ position: "fixed", bottom: 24, left: 24, zIndex: 1000 }}>
+    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 1000, fontFamily: "inherit" }}>
       {/* Hint Bubble */}
       {showHint && !isOpen && (
         <div style={{
-          position: "absolute", bottom: 70, left: 0,
-          background: "white", color: "#1e1b4b", padding: "8px 14px",
-          borderRadius: "16px 16px 16px 4px", fontSize: 12, fontWeight: 700,
-          boxShadow: "0 10px 25px rgba(0,0,0,0.15)", whiteSpace: "nowrap",
-          border: "1.5px solid #6d28d9", animation: "bounce 2s infinite"
+          position: "absolute", bottom: 70, right: 0,
+          background: "white", padding: "10px 16px", borderRadius: 16,
+          boxShadow: "0 10px 25px rgba(0,0,0,0.1)", border: "1.5px solid #ede9fe",
+          fontSize: 12, fontWeight: 700, color: "#6d28d9", whiteSpace: "nowrap",
+          animation: "slideUp 0.3s ease-out"
         }}>
           Help us improve! ✨
           <div style={{
-            position: "absolute", bottom: -6, left: 10,
-            width: 10, height: 10, background: "white",
-            borderRight: "1.5px solid #6d28d9", borderBottom: "1.5px solid #6d28d9",
+            position: "absolute", bottom: -6, right: 24, width: 12, height: 12,
+            background: "white", borderRight: "1.5px solid #ede9fe", borderBottom: "1.5px solid #ede9fe",
             transform: "rotate(45deg)"
           }} />
         </div>
@@ -117,7 +116,7 @@ export default function FeedbackWidget() {
       {/* Chat Drawer */}
       {isOpen && (
         <div style={{
-          position: "absolute", bottom: 70, left: 0,
+          position: "absolute", bottom: 70, right: 0,
           width: 340, background: "white", borderRadius: 24,
           boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
           border: "1.5px solid #e5e7eb", overflow: "hidden",
@@ -125,7 +124,7 @@ export default function FeedbackWidget() {
         }}>
           {/* Header only for non-feedback mode or main menu */}
           {(!mode || mode === "bug") && (
-            <div style={{ 
+            <div style={{
               padding: "20px 20px 10px", background: "linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%)",
               color: "white"
             }}>
@@ -176,16 +175,16 @@ export default function FeedbackWidget() {
             <form onSubmit={handleSubmit} style={{ padding: mode === "feedback" ? "20px 20px 20px" : "20px", display: "flex", flexDirection: "column", gap: 12 }}>
               {mode === "feedback" && (
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                   <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f0fdf4", color: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f0fdf4", color: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Heart size={16} fill="currentColor" />
-                   </div>
-                   <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#166534" }}>Share your feedback</h4>
+                  </div>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#166534" }}>Share your feedback</h4>
                 </div>
               )}
 
               <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 2 }}>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => { setMode(null); setSubjectText(""); setMessage(""); }}
                   style={{ background: "none", border: "none", color: "#6d28d9", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
                 >
@@ -213,7 +212,7 @@ export default function FeedbackWidget() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <label style={{ fontSize: 10, fontWeight: 800, color: mode === "bug" ? "#ef4444" : "#22c55e", marginLeft: 4 }}>
-                   {mode === "bug" ? "DESCRIPTION (REQUIRED)" : "YOUR MESSAGE (REQUIRED)"}
+                  {mode === "bug" ? "DESCRIPTION (REQUIRED)" : "YOUR MESSAGE (REQUIRED)"}
                 </label>
                 <textarea
                   autoFocus={mode === "feedback"}
@@ -238,7 +237,7 @@ export default function FeedbackWidget() {
                   background: (mode === "bug" ? (!subjectText || !message) : !message) ? "#e5e7eb" : "#6d28d9",
                   color: (mode === "bug" ? (!subjectText || !message) : !message) ? "#9ca3af" : "white",
                   border: "none",
-                  fontWeight: 800, fontSize: 14, 
+                  fontWeight: 800, fontSize: 14,
                   cursor: (mode === "bug" ? (!subjectText || !message) : !message) ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
                   boxShadow: (mode === "bug" ? (!subjectText || !message) : !message) ? "none" : "0 8px 20px rgba(109,40,217,0.2)",
@@ -246,7 +245,7 @@ export default function FeedbackWidget() {
                 }}
               >
                 <div style={{ width: 20, height: 20, background: "white", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                   <img src="https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg" style={{ width: 14 }} alt="Gmail" />
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg" style={{ width: 14 }} alt="Gmail" />
                 </div>
                 Open in Gmail
               </button>

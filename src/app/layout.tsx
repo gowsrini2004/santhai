@@ -20,6 +20,7 @@ export const viewport: Viewport = {
 import CreatorBadge from "@/components/branding/CreatorBadge";
 import NotificationToast from "@/components/notifications/NotificationToast";
 import FeedbackWidget from "@/components/branding/FeedbackWidget";
+import HelpWidget from "@/components/branding/HelpWidget";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <CreatorBadge />
         <FeedbackWidget />
+        <HelpWidget />
         <NotificationToast />
       </body>
     </html>

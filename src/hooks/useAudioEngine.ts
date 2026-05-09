@@ -18,7 +18,7 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
   const isWaiting = useRef(false);
   const lastProcessedEnd = useRef<string | null>(null); // To prevent double-triggering same end
   
-  const { loopGap, setWaiting, setPracticeProgress } = useSessionStore();
+  const { loopGap, loopGapEnabled, setWaiting, setPracticeProgress } = useSessionStore();
 
   const handleTimeUpdate = useCallback((currentTime: number) => {
     const ws = getWaveSurferInstance();
@@ -68,11 +68,15 @@ export const useAudioEngine = (_wavesurfer: React.MutableRefObject<WaveSurfer | 
       if (isAtEnd && lastProcessedEnd.current !== triggerId) {
         lastProcessedEnd.current = triggerId;
         
-        const repeatsNeeded = active.repeatCount === "infinite" ? Infinity : Number(active.repeatCount);
+        const { globalRegionRepeatEnabled, globalRegionRepeatCount } = useSessionStore.getState();
+        const repeatsNeeded = globalRegionRepeatEnabled 
+            ? globalRegionRepeatCount 
+            : (active.repeatCount === "infinite" ? Infinity : Number(active.repeatCount));
+
         const currentRepeats = regionRepeatCounts.current[active.id] || 0;
 
         const executeSeek = (targetTime: number) => {
-            if (loopGap > 0) {
+            if (loopGapEnabled && loopGap > 0) {
                 isWaiting.current = true;
                 ws.pause();
                 ws.setTime(targetTime);

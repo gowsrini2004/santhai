@@ -15,7 +15,10 @@ interface SessionState {
   selectedRegionIds: string[];
   playMode: "standard" | "looping";
   loopGap: number; // in milliseconds
+  loopGapEnabled: boolean;
   waitingTimeRemaining: number; // in milliseconds
+  globalRegionRepeatEnabled: boolean;
+  globalRegionRepeatCount: number;
   practiceProgress: {
     regionId: string | null;
     regionRepeat: number; // 1-indexed
@@ -38,7 +41,10 @@ interface SessionState {
   setSelectedRegionIds: (ids: string[]) => void;
   setPlayMode: (mode: "standard" | "looping") => void;
   setLoopGap: (gap: number) => void;
+  setLoopGapEnabled: (enabled: boolean) => void;
   setWaiting: (ms: number) => void;
+  setGlobalRegionRepeatEnabled: (enabled: boolean) => void;
+  setGlobalRegionRepeatCount: (count: number) => void;
   setPracticeProgress: (progress: SessionState["practiceProgress"]) => void;
   
   // Marker/Region actions
@@ -61,8 +67,11 @@ export const useSessionStore = create<SessionState>((set) => ({
   globalLoopCount: "infinite",
   selectedRegionIds: [],
   playMode: "looping",
-  loopGap: 0,
+  loopGap: 1000,
+  loopGapEnabled: false,
   waitingTimeRemaining: 0,
+  globalRegionRepeatEnabled: false,
+  globalRegionRepeatCount: 1,
   practiceProgress: {
     regionId: null,
     regionRepeat: 1,
@@ -84,7 +93,10 @@ export const useSessionStore = create<SessionState>((set) => ({
   setSelectedRegionIds: (selectedRegionIds) => set({ selectedRegionIds }),
   setPlayMode: (mode) => set({ playMode: mode }),
   setLoopGap: (gap) => set({ loopGap: gap }),
+  setLoopGapEnabled: (enabled) => set({ loopGapEnabled: enabled }),
   setWaiting: (ms) => set({ waitingTimeRemaining: ms }),
+  setGlobalRegionRepeatEnabled: (enabled) => set({ globalRegionRepeatEnabled: enabled }),
+  setGlobalRegionRepeatCount: (count) => set({ globalRegionRepeatCount: count }),
   setPracticeProgress: (progress) => set({ practiceProgress: progress }),
 
   addMarker: (marker) => set((state) => {
