@@ -533,7 +533,7 @@ export default function Home() {
                     key={folder.id}
                     layout
                     draggable
-                    onDragStart={(e) => handleDragStart(e, folder.id, 'folder')}
+                    onDragStart={(e: any) => handleDragStart(e, folder.id, 'folder')}
                     onDragOver={(e) => {
                       e.preventDefault();
                       if (dragOverFolderId !== folder.id) setDragOverFolderId(folder.id);
@@ -596,7 +596,7 @@ export default function Home() {
                     key={session.id}
                     layout
                     draggable
-                    onDragStart={(e) => handleDragStart(e, session.id, 'session')}
+                    onDragStart={(e: any) => handleDragStart(e, session.id, 'session')}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
