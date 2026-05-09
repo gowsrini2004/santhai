@@ -13,9 +13,17 @@ export interface Region {
   repeatCount: number | "infinite";
 }
 
+export interface Folder {
+  id: string;
+  name: string;
+  parentId: string | null; // null for root
+  createdAt: number;
+}
+
 export interface Session {
   id: string;
   name: string;
+  folderId: string | null; // null for root
   createdAt: number;
   updatedAt: number;
   audioBlob?: Blob;

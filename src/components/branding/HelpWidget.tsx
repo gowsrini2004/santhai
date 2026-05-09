@@ -92,9 +92,10 @@ export default function HelpWidget() {
                     <HelpSection icon={Music2} title="1. Dashboard & Sessions">
                       Your <b>Home Dashboard</b> is where you manage your practice library. 
                       <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
-                        <li><b>Search</b>: Use the search bar to quickly find specific sessions as your library grows.</li>
-                        <li><b>Management</b>: Delete old sessions using the trash icon. Every session is stored 100% locally in your browser for privacy.</li>
-                        <li><b>Try Demo</b>: Perfect for first-time users to see how a professional session looks.</li>
+                        <li><b>Global Search</b>: Search across all folders and subfolders instantly to locate any session or directory globally.</li>
+                        <li><b>Folder Navigation</b>: Create custom folders, drag-and-drop sessions, and navigate with instant <b>Home</b> and <b>Back</b> inline buttons.</li>
+                        <li><b>Backup & Restore</b>: Save your entire library (folders, markers, and raw WAV audio files) into a secure <code>.zip</code> backup and restore it anytime on any device.</li>
+                        <li><b>Safe Deletions</b>: Avoid generic browser alerts. All deletions are protected by gorgeous, custom safety confirmation cards.</li>
                       </ul>
                     </HelpSection>
 

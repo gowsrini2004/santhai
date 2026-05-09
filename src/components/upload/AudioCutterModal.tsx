@@ -10,9 +10,10 @@ interface AudioCutterModalProps {
   isOpen: boolean;
   onClose: () => void;
   file: File | null;
+  defaultFolderId: string | null;
 }
 
-export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterModalProps) {
+export default function AudioCutterModal({ isOpen, onClose, file, defaultFolderId }: AudioCutterModalProps) {
   const containerRef = useRef<HTMLDivElement>(null!);
   const wavesurfer = useRef<WaveSurfer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -22,7 +23,9 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
   const [partNames, setPartNames] = useState<string[]>(["Part 1"]);
   const [isExporting, setIsExporting] = useState(false);
   const [zoom, setZoom] = useState(0); 
-  const { createSession } = useSession();
+  const [saveToFolder, setSaveToFolder] = useState<"current" | "new">("current");
+  const [newFolderName, setNewFolderName] = useState("");
+  const { createSession, createFolder } = useSession();
 
   useEffect(() => {
     if (!isOpen || !file || !containerRef.current) return;
@@ -58,6 +61,17 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
   }, [zoom]);
 
   const addMarker = () => {
+    // Prevent cutting in the first 0.5s or last 0.5s of the audio track
+    const threshold = 0.5;
+    if (currentTime < threshold) {
+      alert("Cannot split too close to the beginning of the audio track!");
+      return;
+    }
+    if (currentTime > duration - threshold) {
+      alert("Cannot split too close to the end of the audio track!");
+      return;
+    }
+
     const newMarker = {
       id: Math.random().toString(36).substr(2, 9),
       time: currentTime,
@@ -107,6 +121,13 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
     setIsExporting(true);
 
     try {
+      let targetFolderId = defaultFolderId;
+
+      if (saveToFolder === "new") {
+        const folderName = newFolderName.trim() || "New Sessions Folder";
+        targetFolderId = await createFolder(folderName, defaultFolderId);
+      }
+
       const arrayBuffer = await file.arrayBuffer();
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
@@ -133,7 +154,7 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
           const renderedBuffer = await offlineCtx.startRendering();
           const wavBlob = bufferToWav(renderedBuffer);
           const label = partNames[i]?.trim() || `Part ${i + 1}`;
-          await createSession(label, new File([wavBlob], `${label}.wav`, { type: 'audio/wav' }));
+          await createSession(label, new File([wavBlob], `${label}.wav`, { type: 'audio/wav' }), targetFolderId);
       }
 
       onClose();
@@ -158,7 +179,6 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
   }
 
   const isFit = zoom === 0;
-  // Calculate width precisely to enable standard browser horizontal scrolling
   const totalWidth = isFit ? "100%" : `${duration * zoom}px`;
 
   return (
@@ -191,32 +211,14 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
         {/* Content */}
         <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, minHeight: 0 }}>
           
-          {/* Waveform Viewport (The Porthole) */}
           <div style={{ 
             background: "#f9fafb", border: "1.5px solid #e5e7eb", borderRadius: 20, 
             overflow: "hidden", position: "relative", height: 140, marginBottom: 12,
             width: "100%", minWidth: 0
           }}>
-             {/* The Scrollable Element */}
-             <div style={{ 
-                overflowX: "auto", 
-                height: "100%", 
-                width: "100%", 
-                position: "relative"
-             }}>
-                {/* The Content (Scaled Width) */}
-                <div style={{ 
-                    width: totalWidth, 
-                    minWidth: "100%", 
-                    height: "100%", 
-                    position: "relative", 
-                    display: "flex", 
-                    alignItems: "center" 
-                }}>
-                    {/* WaveSurfer Target - Must span full parent width */}
+             <div style={{ overflowX: "auto", height: "100%", width: "100%", position: "relative" }}>
+                <div style={{ width: totalWidth, minWidth: "100%", height: "100%", position: "relative", display: "flex", alignItems: "center" }}>
                     <div ref={containerRef} style={{ width: "100%", minWidth: "100%" }} />
-                    
-                    {/* Split Markers */}
                     {duration > 0 && markers.map(m => {
                       const leftPos = isFit ? `${(m.time / duration) * 100}%` : `${m.time * zoom}px`;
                       return (
@@ -250,7 +252,6 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
               {formatTime(currentTime)} <span style={{ color: "#9ca3af", fontWeight: 500 }}>/ {formatTime(duration)}</span>
             </div>
 
-            {/* Zoom Controls */}
             <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#f3f4f6", padding: 4, borderRadius: 12 }}>
                 <button onClick={() => setZoom(Math.max(0, zoom - 50))} style={{ padding: 6, border: "none", background: "none", cursor: "pointer", color: "#6d28d9" }}><ZoomOut size={16}/></button>
                 <button onClick={() => setZoom(0)} style={{ padding: "4px 10px", border: "none", background: isFit ? "white" : "none", borderRadius: 8, fontSize: 11, fontWeight: 800, color: "#6d28d9", cursor: "pointer", boxShadow: isFit ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}><RotateCcw size={14}/> Fit</button>
@@ -327,37 +328,83 @@ export default function AudioCutterModal({ isOpen, onClose, file }: AudioCutterM
           </div>
         </div>
 
-        <div style={{ padding: "16px 24px", background: "#f9fafb", borderTop: "1.5px solid #f3f4f6", display: "flex", justifyContent: "flex-end", gap: 12 }}>
-          <button onClick={onClose} style={{ padding: "10px 24px", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "white", fontWeight: 700, cursor: "pointer", color: "#6b7280" }}>
-            Cancel
-          </button>
-          <button
-            onClick={exportCuts}
-            disabled={markers.length === 0 || isExporting}
-            style={{
-              padding: "10px 24px", borderRadius: 12, border: "none",
-              background: isExporting ? "#e5e7eb" : "#6d28d9",
-              color: "white", fontWeight: 800, fontSize: 14, cursor: isExporting ? "not-allowed" : "pointer",
-              display: "flex", alignItems: "center", gap: 8,
-              boxShadow: "0 4px 12px rgba(109,40,217,0.2)"
-            }}
-          >
-            <Save size={18} /> {isExporting ? "Processing..." : "Create Sessions"}
-          </button>
+        <div style={{ 
+          padding: "16px 24px", background: "#f9fafb", borderTop: "1.5px solid #f3f4f6", 
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" 
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+             <div style={{ display: "flex", background: "#f3f4f6", padding: 4, borderRadius: 12 }}>
+                <button 
+                  onClick={() => setSaveToFolder("current")}
+                  style={{
+                    padding: "6px 12px", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                    background: saveToFolder === "current" ? "white" : "transparent",
+                    color: saveToFolder === "current" ? "#6d28d9" : "#6b7280",
+                    cursor: "pointer", boxShadow: saveToFolder === "current" ? "0 2px 4px rgba(0,0,0,0.05)" : "none"
+                  }}
+                >
+                  Current View
+                </button>
+                <button 
+                  onClick={() => setSaveToFolder("new")}
+                  style={{
+                    padding: "6px 12px", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                    background: saveToFolder === "new" ? "white" : "transparent",
+                    color: saveToFolder === "new" ? "#6d28d9" : "#6b7280",
+                    cursor: "pointer", boxShadow: saveToFolder === "new" ? "0 2px 4px rgba(0,0,0,0.05)" : "none"
+                  }}
+                >
+                  In New Folder
+                </button>
+             </div>
+             {saveToFolder === "new" && (
+                <input 
+                  value={newFolderName}
+                  onChange={e => setNewFolderName(e.target.value)}
+                  placeholder="Enter folder name..."
+                  style={{
+                    padding: "8px 12px", borderRadius: 10, border: "1.5px solid #e5e7eb",
+                    fontSize: 13, fontWeight: 600, outline: "none", width: 180
+                  }}
+                />
+             )}
+          </div>
+
+          <div style={{ display: "flex", gap: 12 }}>
+            <button onClick={onClose} style={{ padding: "10px 24px", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "white", fontWeight: 700, cursor: "pointer", color: "#6b7280" }}>
+              Cancel
+            </button>
+            <button
+              onClick={exportCuts}
+              disabled={markers.length === 0 || isExporting}
+              style={{
+                padding: "10px 24px", borderRadius: 12, border: "none",
+                background: isExporting ? "#e5e7eb" : "#6d28d9",
+                color: "white", fontWeight: 800, fontSize: 14, cursor: isExporting ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 8,
+                boxShadow: "0 4px 12px rgba(109,40,217,0.2)"
+              }}
+            >
+              <Save size={18} /> {isExporting ? "Processing..." : "Create Sessions"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// WAV helper
+// WAV helper (runs instantaneously inside browser)
 function bufferToWav(abuffer: AudioBuffer) {
-  let numOfChan = abuffer.numberOfChannels,
-      length = abuffer.length * numOfChan * 2 + 44,
-      buffer = new ArrayBuffer(length),
-      view = new DataView(buffer),
-      channels = [], i, sample,
-      offset = 0, pos = 0;
+  let numOfChan = abuffer.numberOfChannels;
+  let length = abuffer.length * numOfChan * 2 + 44;
+  let buffer = new ArrayBuffer(length);
+  let view = new DataView(buffer);
+  let channels = [];
+  let i;
+  let sample;
+  let offset = 0;
+  let pos = 0;
 
   function setUint16(data: any) { view.setUint16(pos, data, true); pos += 2; }
   function setUint32(data: any) { view.setUint32(pos, data, true); pos += 4; }

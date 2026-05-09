@@ -25,7 +25,7 @@ import HelpWidget from "@/components/branding/HelpWidget";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         {children}
         <CreatorBadge />
         <FeedbackWidget />

@@ -1,13 +1,15 @@
 import Dexie, { type Table } from "dexie";
-import { Session } from "@/types";
+import { Session, Folder } from "@/types";
 
 export class SanthaiDB extends Dexie {
   sessions!: Table<Session>;
+  folders!: Table<Folder>;
 
   constructor() {
     super("SanthaiDB");
-    this.version(1).stores({
-      sessions: "id, name, createdAt, updatedAt",
+    this.version(2).stores({
+      sessions: "id, name, folderId, createdAt, updatedAt",
+      folders: "id, name, parentId, createdAt",
     });
   }
 }

@@ -7,8 +7,9 @@ import { useSessionStore } from "@/store/useSessionStore";
 import WaveformPlayer from "@/components/waveform/WaveformPlayer";
 import PlaybackBar from "@/components/playback/PlaybackBar";
 import RegionList from "@/components/regions/RegionList";
-import { ChevronLeft, MapPin, Trash2, Clock, Layers, Info, Edit3, Check, Maximize2, Monitor, RefreshCw } from "lucide-react";
+import { ChevronLeft, MapPin, Trash2, Clock, Layers, Info, Edit3, Check, Maximize2, Monitor, RefreshCw, Download } from "lucide-react";
 import { formatTime } from "@/lib/timeUtils";
+import { generatePracticeSequence } from "@/lib/audioExport";
 
 export default function SessionStudio() {
   const { id } = useParams();
@@ -28,6 +29,7 @@ export default function SessionStudio() {
   const [editedName, setEditedName] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (id) loadSession(id as string).then(() => setIsLoaded(true));
@@ -87,6 +89,38 @@ export default function SessionStudio() {
 
     const globalReps = globalLoopCount === "infinite" ? 1 : globalLoopCount;
     return sequenceDuration * globalReps;
+  };
+
+  const handleDownloadPractice = async () => {
+    if (!currentSession || selectedRegionIds.length === 0) {
+      alert("Please select at least one region to export.");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const blob = await generatePracticeSequence(currentSession, {
+        selectedRegionIds,
+        loopGap,
+        loopGapEnabled,
+        globalLoopCount,
+        globalRegionRepeatEnabled,
+        globalRegionRepeatCount
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${currentSession.name}_Practice.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Export failed", e);
+      alert("Failed to generate practice sequence.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   useEffect(() => {
@@ -414,6 +448,31 @@ export default function SessionStudio() {
                         : "Regions will use their individual repeat settings."}
                 </p>
             </div>
+
+            <button
+              onClick={handleDownloadPractice}
+              disabled={isExporting || selectedRegionIds.length === 0}
+              style={{
+                marginTop: 16, width: "100%", padding: "12px", borderRadius: 12,
+                background: isExporting ? "#f3f4f6" : "#10b981",
+                color: isExporting ? "#9ca3af" : "white",
+                border: "none", fontWeight: 800, fontSize: 13, cursor: isExporting ? "wait" : "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                boxShadow: isExporting ? "none" : "0 4px 12px rgba(16,185,129,0.2)",
+                transition: "all 0.2s"
+              }}
+            >
+              {isExporting ? (
+                <>
+                  <div className="animate-spin" style={{ width: 14, height: 14, border: "2px solid #ddd", borderTopColor: "#10b981", borderRadius: "50%" }} />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Download size={16} /> Download for Practice
+                </>
+              )}
+            </button>
           </div>
 
           <div className="mobile-hide" style={{ background: "#f5f3ff", border: "1.5px solid #c4b5fd", borderRadius: 20, padding: 20 }}>
